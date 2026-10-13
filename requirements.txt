@@ -1,5 +1,7 @@
 streamlit
 pandas
 openpyxl
-Pillow
 reportlab
+Pillow
+gspread
+google-auth
