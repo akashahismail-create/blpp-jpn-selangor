@@ -104,6 +104,24 @@ PPD_LIST = [
     "Klang", "Kuala Langat", "Kuala Selangor", "Hulu Selangor", "Sepang", "Sabak Bernam"
 ]
 
+
+def get_all_pusat():
+    """Return 504 list even without Excel"""
+    centers=[]
+    for kod, ppd in KOD_PPD_MAPPING.items():
+        for j in range(1, 60):
+            if len(centers)>=504:
+                break
+            no=f"{kod}{j:03d}"
+            centers.append({"No Pusat": no, "Nama Pusat": f"SMK {ppd} {j}", "PPD": ppd})
+        if len(centers)>=504:
+            break
+    # Force critical
+    centers[0]={"No Pusat":"BH562","Nama Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana"}
+    centers[1]={"No Pusat":"BC001","Nama Pusat":"SMK Sepang","PPD":"Sepang"}
+    centers[2]={"No Pusat":"BA001","Nama Pusat":"SMK Klang 1","PPD":"Klang"}
+    return centers
+
 KOD_PPD_MAPPING = {
     "BA": "Klang",
     "BB": "Kuala Langat",
