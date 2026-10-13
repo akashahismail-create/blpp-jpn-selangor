@@ -441,8 +441,9 @@ def jana_blpp_html(report):
 
 
 
+
 def jana_blpp_pdf(report):
-    """PDF SEBIJIK 100% BORANG ASAL LP - FINAL - logo besar, tanpa garisan, tengah 1 kotak besar kosong"""
+    """PDF cantik kemas - 3 layer fallback, takkan return kosong"""
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
     nama_kp = report.get('nama_kp','')
@@ -451,23 +452,28 @@ def jana_blpp_pdf(report):
     kes_data = report.get('kes_data', [])
     tiada = report.get('tiada_kes', False)
 
+    # LAYER 1: FPDF cantik dengan logo
     try:
         from fpdf import FPDF
         from PIL import Image
         import os
 
         logo_to_use = None
-        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/tmp/logo_final.png"]:
+        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/tmp/logo_lp_final.png", "/mnt/data/logo_lp.png"]:
             if os.path.exists(lp):
                 try:
                     im = Image.open(lp)
-                    tmp = "/tmp/logo_final.png"
+                    tmp = "/tmp/logo_lp_final.png"
                     im.convert("RGBA").save(tmp, "PNG")
                     logo_to_use = tmp
                     break
                 except:
-                    logo_to_use = lp
-                    break
+                    try:
+                        # cuba guna terus tanpa convert
+                        logo_to_use = lp
+                        break
+                    except:
+                        pass
 
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.set_auto_page_break(auto=False)
@@ -476,7 +482,7 @@ def jana_blpp_pdf(report):
         if logo_to_use:
             try:
                 pdf.image(logo_to_use, x=10, y=4, w=32)
-            except:
+            except Exception as e:
                 pass
 
         pdf.set_font("Helvetica", "B", 10)
@@ -490,128 +496,172 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 13)
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
-
-        pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ................................... TAHUN ....................."
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.set_xy(10, 22)
-        pdf.cell(277, 5, pep_text, align="C")
+        pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_xy(10, 21)
+        pdf.cell(277, 6, pep_text, align="C")
         pdf.set_font("Helvetica", "B", 12)
-        pdf.set_xy(10, 28)
+        pdf.set_xy(10, 27)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
 
-        pdf.set_font("Helvetica", "", 9.5)
-        pdf.set_xy(10, 36)
+        pdf.set_font("Helvetica", "", 6.8)
+        pdf.set_xy(10, 35)
         arahan = """1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.
 2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
-        pdf.multi_cell(277, 4.2, arahan, align="J")
+        pdf.multi_cell(277, 3.2, arahan, align="J")
 
-        y1 = 58
-        pdf.set_xy(10, y1)
+        y1 = 47
         pdf.set_font("Helvetica", "B", 8.5)
-        pdf.cell(53, 10, "NO. PUSAT", border=1, align="C")
-        pdf.cell(133, 10, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
-        x3 = 182
-        pdf.set_xy(x3, y1)
-        pdf.cell(91, 10, "", border=1)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(x3, y1)
-        pdf.cell(149, 3.5, "NAMA KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+3.5)
-        pdf.cell(149, 3.5, "PEPERIKSAAN/KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+7)
-        pdf.cell(149, 3, "AMALI/KETUA PENTAKSIR/ASSESSOR", align="C")
-
-        pdf.set_xy(10, y1+10)
+        pdf.set_xy(10, y1)
+        pdf.cell(38, 8, "NO. PUSAT", border=1, align="C")
+        pdf.cell(90, 8, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
+        pdf.cell(149, 8, "NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR", border=1, align="C")
+        pdf.set_xy(10, y1+8)
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(48, 14, no_pusat, border=1, align="C")
+        pdf.cell(38, 8, no_pusat, border=1, align="C")
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(124, 14, nama_pusat[:60], border=1, align="C")
-        pdf.cell(105, 14, nama_kp[:45], border=1, align="C")
+        pdf.cell(90, 8, nama_pusat[:48], border=1, align="C")
+        pdf.cell(149, 8, nama_kp[:78], border=1, align="C")
 
-        y2 = y1 + 30
+        y2 = y1 + 20
         pdf.set_xy(10, y2)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.cell(15, 10, "BIL.", border=1, align="C")
-        pdf.cell(33, 10, "ANGKA GILIRAN", border=1, align="C")
-        pdf.set_xy(58, y2)
-        pdf.cell(42, 10, "", border=1)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(58, y2)
-        pdf.cell(42, 5, "NO. PENGENALAN", align="C")
-        pdf.set_xy(63, y2+5)
-        pdf.cell(42, 5, "DIRI", align="C")
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(100, y2)
-        pdf.cell(82, 10, "KES", border=1, align="C")
-        pdf.set_xy(182, y2)
-        pdf.cell(105, 10, "TINDAKAN", border=1, align="C")
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.cell(15, 7, "BIL.", border=1, align="C")
+        pdf.cell(38, 7, "ANGKA GILIRAN", border=1, align="C")
+        pdf.cell(42, 7, "NO. PENGENALAN DIRI", border=1, align="C")
+        pdf.cell(91, 7, "KES", border=1, align="C")
+        pdf.cell(91, 7, "TINDAKAN", border=1, align="C")
 
-        big_h = 38
-        pdf.set_xy(10, y2+10)
+        pdf.set_font("Helvetica", "", 8.5)
         if tiada or not kes_data:
-            pdf.cell(15, big_h, "", border=1)
-            pdf.cell(38, big_h, "", border=1)
-            pdf.cell(42, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-        else:
-            pdf.cell(15, big_h, "", border=1)
-            pdf.cell(38, big_h, "", border=1)
-            pdf.cell(42, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-            pdf.set_font("Helvetica", "", 7.5)
-            for idx, k in enumerate(kes_data):
-                yy = y2+10 + 1 + idx*6
-                if yy > y2+10+big_h-3:
-                    break
+            for i in range(6):
+                yy = y2 + 7 + (i*7)
                 pdf.set_xy(10, yy)
-                pdf.cell(15, 5, str(idx+1), align="C")
-                pdf.set_xy(25, yy)
-                pdf.cell(38, 5, str(k.get('angka_giliran',''))[:18], align="C")
-                pdf.set_xy(63, yy)
-                pdf.cell(42, 5, str(k.get('no_ic',''))[:20], align="C")
-                pdf.set_xy(105, yy)
-                pdf.cell(91, 5, str(k.get('kes',''))[:55], align="L")
-                pdf.set_xy(196, yy)
-                pdf.cell(91, 5, str(k.get('tindakan',''))[:55], align="L")
+                pdf.cell(15, 7, "", border=1, align="C")
+                pdf.cell(38, 7, "", border=1, align="C")
+                pdf.cell(42, 7, "", border=1, align="C")
+                pdf.cell(91, 7, "", border=1, align="L")
+                pdf.cell(91, 7, "", border=1, align="L")
+        else:
+            for i in range(6):
+                yy = y2 + 7 + (i*7)
+                pdf.set_xy(10, yy)
+                if i < len(kes_data):
+                    k = kes_data[i]
+                    pdf.cell(15, 7, str(i+1), border=1, align="C")
+                    pdf.cell(38, 7, str(k.get('angka_giliran',''))[:18], border=1, align="C")
+                    pdf.cell(42, 7, str(k.get('no_ic',''))[:20], border=1, align="C")
+                    pdf.cell(91, 7, str(k.get('kes',''))[:60], border=1, align="L")
+                    pdf.cell(91, 7, str(k.get('tindakan',''))[:60], border=1, align="L")
+                else:
+                    pdf.cell(15, 7, "", border=1, align="C")
+                    pdf.cell(38, 7, "", border=1, align="C")
+                    pdf.cell(42, 7, "", border=1, align="C")
+                    pdf.cell(91, 7, "", border=1, align="L")
+                    pdf.cell(91, 7, "", border=1, align="L")
 
-        yf = y2+10+big_h+4
+        yf = y2 + 7 + 42 + 6
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(10, yf)
         pdf.cell(60, 5, "Pelapor:")
         pdf.set_xy(160, yf)
         pdf.cell(60, 5, "Pengesahan:")
-        pdf.set_font("Helvetica", "", 7.5)
-        pdf.set_xy(10, yf+10)
-        pdf.cell(80, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
-        pdf.set_xy(10, yf+14)
-        pdf.cell(80, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
-        pdf.set_xy(160, yf+10)
-        pdf.cell(80, 4, "Tandatangan Penyelia Kawasan/Pegawai Peperiksaan")
-        pdf.line(10, yf+18, 90, yf+18)
-        pdf.line(160, yf+18, 240, yf+18)
-        pdf.set_font("Helvetica", "", 7.5)
-        pdf.set_xy(10, yf+20)
-        pdf.cell(80, 5, "Tarikh: ______________________")
-        pdf.set_xy(160, yf+20)
-        pdf.cell(80, 5, "Tarikh: ______________________")
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_xy(10, yf+12)
+        pdf.cell(70, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
+        pdf.set_xy(10, yf+16)
+        pdf.cell(70, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
+        pdf.set_xy(160, yf+12)
+        pdf.cell(70, 4, "Tandatangan Penyelia Kawasan/Pegawai Peperiksaan")
+        pdf.line(10, yf+20, 85, yf+20)
+        pdf.line(160, yf+20, 235, yf+20)
+        pdf.set_xy(10, yf+22)
+        pdf.cell(80, 5, "Tarikh: ___________________________")
+        pdf.set_xy(160, yf+22)
+        pdf.cell(80, 5, "Tarikh: ___________________________")
 
         out = pdf.output(dest='S')
-        return out.encode('latin1') if isinstance(out, str) else bytes(out)
+        if isinstance(out, str):
+            return out.encode('latin1')
+        return bytes(out)
     except Exception as e:
         import traceback
         traceback.print_exc()
-        try:
-            from fpdf import FPDF
-            pdf = FPDF(orientation='L', unit='mm', format='A4')
-            pdf.add_page()
-            pdf.set_font("Helvetica","B",14)
-            pdf.cell(0,10,f"BLPP - {no_pusat}", align="C", new_x="LMARGIN", new_y="NEXT")
-            out = pdf.output(dest='S')
-            return out.encode('latin1') if isinstance(out, str) else bytes(out)
-        except:
-            return f"BLPP {no_pusat}".encode()
+
+    # LAYER 2: Reportlab simple tanpa logo - pasti jadi
+    try:
+        from io import BytesIO
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm, topMargin=10*mm, bottomMargin=10*mm)
+        story = []
+        def P(txt, sz=9, bold=False):
+            return Paragraph(f"<b>{txt}</b>" if bold else txt, ParagraphStyle(f"s{sz}{bold}{txt[:5]}", fontName='Helvetica-Bold' if bold else 'Helvetica', fontSize=sz, leading=sz+2, alignment=TA_CENTER))
+
+        W = landscape(A4)[0] - 20*mm
+        hdr = [[P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA",10,True), P("LP/Am 90 Pin. 1/2023<br/>BLPP",9,True)]]
+        story.append(Table(hdr, colWidths=[0.8*W,0.2*W]))
+        story.append(Spacer(1,3*mm))
+        story.append(P(f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ... TAHUN ...",11,True))
+        story.append(P("BORANG LAPORAN PENGENDALIAN PEPERIKSAAN",12,True))
+        story.append(Spacer(1,3*mm))
+
+        t1 = [[P("NO. PUSAT",8,True), P("NAMA PUSAT",8,True), P("NAMA KETUA PENGAWAS",8,True)],
+              [P(no_pusat,9,True), P(nama_pusat,9,True), P(nama_kp,9,True)]]
+        tbl1 = Table(t1, colWidths=[W*0.14,W*0.34,W*0.52])
+        tbl1.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
+        story.append(tbl1)
+        story.append(Spacer(1,3*mm))
+
+        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. PENGENALAN DIRI",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
+        # SEBIJIK ASAL: 1 header + 1 kotak besar
+        big_row = [P("",8) for _ in range(5)]
+        if tiada or not kes_data:
+            data2 = [hdr2, big_row]
+        else:
+            # Isi dalam satu baris besar
+            bil_txt = "<br/>".join([str(i+1) for i in range(len(kes_data))])
+            ang_txt = "<br/>".join([k.get('angka_giliran','') for k in kes_data])
+            ic_txt = "<br/>".join([k.get('no_ic','') for k in kes_data])
+            kes_txt = "<br/>".join([k.get('kes','') for k in kes_data])
+            tind_txt = "<br/>".join([k.get('tindakan','') for k in kes_data])
+            big_row = [P(bil_txt,8), P(ang_txt,8), P(ic_txt,8), P(kes_txt,8), P(tind_txt,8)]
+            data2 = [hdr2, big_row]
+
+        tbl2 = Table(data2, colWidths=[W*0.06,W*0.15,W*0.17,W*0.31,W*0.31])
+        tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
+        story.append(tbl2)
+
+        doc.build(story)
+        buffer.seek(0)
+        return buffer.getvalue()
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+    # LAYER 3: Paling last - minimal PDF
+    try:
+        from fpdf import FPDF
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.add_page()
+        pdf.set_font("Helvetica","B",14)
+        pdf.cell(0,10,f"BLPP - {no_pusat} - {nama_pusat}", align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica","",11)
+        pdf.cell(0,8,f"Peperiksaan: {pep} Tahun: {thn}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0,8,f"Nama KP: {nama_kp}", new_x="LMARGIN", new_y="NEXT")
+        out = pdf.output(dest='S')
+        return out.encode('latin1') if isinstance(out,str) else bytes(out)
+    except:
+        return f"BLPP {no_pusat} {nama_pusat}".encode()
+
+
+
 
 
 # ========== LOGIN ==========
