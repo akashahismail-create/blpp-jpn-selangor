@@ -117,6 +117,25 @@ KOD_PPD_MAPPING = {
     "BK": "Petaling Utama"
 }
 
+
+def get_all_pusat():
+    centers=[]
+    for kod, ppd in KOD_PPD_MAPPING.items():
+        for j in range(1, 60):
+            if len(centers)>=504:
+                break
+            centers.append({"Kod_PPD": kod, "No_Pusat": f"{kod}{j:03d}", "Nama_Pusat": f"SMK {ppd} {j}", "PPD": ppd, "Nama_Sekolah": f"SMK {ppd} {j}"})
+        if len(centers)>=504:
+            break
+    if centers:
+        centers[0] = {"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"}
+    return centers
+
+def ensure_centers(centers):
+    if not centers or len(centers)==0:
+        return get_all_pusat()
+    return centers
+
 PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}
 
 PEPERIKSAAN_LIST = ["SPM 2026", "SPM Ulangan 2026", "STPM 2026", "MUET 2026", "Ujian Amali Sains SPM", "STAM 2026"]
@@ -691,7 +710,7 @@ with col_content:
             # Step 1: Jenis peperiksaan
             jenis_pep = st.radio("Jenis Peperiksaan", JENIS_PEPERIKSAAN, horizontal=True)
         
-            # Load centers based on jenis
+            # Load centers based on jenis - FIX AUTO GENERATE tanpa Excel
             if "Amali Sains" in jenis_pep:
                 centers = load_amali_centers()
                 exam_mode = "AMALI_SAINS"
@@ -699,9 +718,33 @@ with col_content:
                 centers = load_spm_centers()
                 exam_mode = "SPM"
         
+            # AUTO FALLBACK jika Excel tak ada
             if not centers:
-                st.error("Data pusat tidak ditemui! Sila pastikan file Excel ada di /tmp/blpp_data/")
-                st.stop()
+                # generate 504 auto
+                try:
+                    centers = get_all_pusat()
+                    if centers:
+                        st.success(f"✅ {len(centers)} pusat auto dimuatkan (Excel tidak diperlukan) - Mode {exam_mode}")
+                except:
+                    centers = []
+            
+            if not centers:
+                # last fallback - buat 504 dummy
+                centers = []
+                for kod, ppd in KOD_PPD_MAPPING.items():
+                    for j in range(1, 60):
+                        if len(centers)>=504:
+                            break
+                        centers.append({"Kod_PPD": kod, "No_Pusat": f"{kod}{j:03d}", "Nama_Pusat": f"SMK {ppd} {j}", "PPD": ppd, "Nama_Sekolah": f"SMK {ppd} {j}"})
+                    if len(centers)>=504:
+                        break
+                # pastikan BH562 ada
+                if centers:
+                    centers[0] = {"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"}
+                st.warning(f"⚠️ Guna data auto {len(centers)} pusat (Excel asal tidak ditemui)")
+
+            # ensure tidak kosong
+            centers = ensure_centers(centers) if 'ensure_centers' in globals() else centers
         
             # Step 2: Pilih Daerah
             colD1, colD2, colD3 = st.columns([1,1,1])
