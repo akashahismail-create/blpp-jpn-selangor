@@ -510,7 +510,7 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.cell(53, 10, "NO. PUSAT", border=1, align="C")
         pdf.cell(133, 10, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
-        x3 = 196
+        x3 = 182
         pdf.set_xy(x3, y1)
         pdf.cell(91, 10, "", border=1)
         pdf.set_font("Helvetica", "B", 7.5)
@@ -523,28 +523,28 @@ def jana_blpp_pdf(report):
 
         pdf.set_xy(10, y1+10)
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(53, 14, no_pusat, border=1, align="C")
+        pdf.cell(48, 14, no_pusat, border=1, align="C")
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(133, 14, nama_pusat[:60], border=1, align="C")
-        pdf.cell(91, 14, nama_kp[:45], border=1, align="C")
+        pdf.cell(124, 14, nama_pusat[:60], border=1, align="C")
+        pdf.cell(105, 14, nama_kp[:45], border=1, align="C")
 
         y2 = y1 + 30
         pdf.set_xy(10, y2)
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.cell(15, 10, "BIL.", border=1, align="C")
-        pdf.cell(38, 10, "ANGKA GILIRAN", border=1, align="C")
-        pdf.set_xy(63, y2)
+        pdf.cell(33, 10, "ANGKA GILIRAN", border=1, align="C")
+        pdf.set_xy(58, y2)
         pdf.cell(42, 10, "", border=1)
         pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(63, y2)
+        pdf.set_xy(58, y2)
         pdf.cell(42, 5, "NO. PENGENALAN", align="C")
         pdf.set_xy(63, y2+5)
         pdf.cell(42, 5, "DIRI", align="C")
         pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(105, y2)
-        pdf.cell(91, 10, "KES", border=1, align="C")
-        pdf.set_xy(196, y2)
-        pdf.cell(91, 10, "TINDAKAN", border=1, align="C")
+        pdf.set_xy(100, y2)
+        pdf.cell(82, 10, "KES", border=1, align="C")
+        pdf.set_xy(182, y2)
+        pdf.cell(105, 10, "TINDAKAN", border=1, align="C")
 
         big_h = 38
         pdf.set_xy(10, y2+10)
