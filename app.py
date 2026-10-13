@@ -481,7 +481,7 @@ def jana_blpp_pdf(report):
 
         if logo_to_use:
             try:
-                pdf.image(logo_to_use, x=10, y=4, w=32)
+                pdf.image(logo_to_use, x=12, y=4, w=26)
             except Exception as e:
                 pass
 
@@ -496,6 +496,10 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 13)
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
+        pdf.set_line_width(0.4)
+        pdf.line(10, 21, 287, 21)
+        pdf.set_line_width(0.2)
+
         pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_xy(10, 21)
@@ -503,6 +507,7 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 12)
         pdf.set_xy(10, 27)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
+        pdf.line(72, 33.5, 225, 33.5)
 
         pdf.set_font("Helvetica", "", 6.8)
         pdf.set_xy(10, 35)
@@ -619,21 +624,16 @@ def jana_blpp_pdf(report):
         story.append(tbl1)
         story.append(Spacer(1,3*mm))
 
-        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. PENGENALAN DIRI",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
-        # SEBIJIK ASAL: 1 header + 1 kotak besar
-        big_row = [P("",8) for _ in range(5)]
+        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. IC",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
+        data2 = [hdr2]
         if tiada or not kes_data:
-            data2 = [hdr2, big_row]
+            for _ in range(6):
+                data2.append([P("",8) for _ in range(5)])
         else:
-            # Isi dalam satu baris besar
-            bil_txt = "<br/>".join([str(i+1) for i in range(len(kes_data))])
-            ang_txt = "<br/>".join([k.get('angka_giliran','') for k in kes_data])
-            ic_txt = "<br/>".join([k.get('no_ic','') for k in kes_data])
-            kes_txt = "<br/>".join([k.get('kes','') for k in kes_data])
-            tind_txt = "<br/>".join([k.get('tindakan','') for k in kes_data])
-            big_row = [P(bil_txt,8), P(ang_txt,8), P(ic_txt,8), P(kes_txt,8), P(tind_txt,8)]
-            data2 = [hdr2, big_row]
-
+            for i,k in enumerate(kes_data,1):
+                data2.append([P(str(i),8), P(k.get('angka_giliran',''),8), P(k.get('no_ic',''),8), Paragraph(k.get('kes',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT)), Paragraph(k.get('tindakan',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT))])
+            while len(data2)<7:
+                data2.append([P("",8) for _ in range(5)])
         tbl2 = Table(data2, colWidths=[W*0.06,W*0.15,W*0.17,W*0.31,W*0.31])
         tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
         story.append(tbl2)
