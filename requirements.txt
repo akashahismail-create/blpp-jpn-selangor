@@ -3,5 +3,3 @@ pandas
 openpyxl
 Pillow
 reportlab
-gspread
-google-auth
