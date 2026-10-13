@@ -441,127 +441,225 @@ def jana_blpp_html(report):
 
 
 
+
 def jana_blpp_pdf(report):
-    """PDF robust full + logo - tested working 15KB"""
-    from io import BytesIO
-    from reportlab.lib.pagesizes import landscape, A4
-    from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.lib.enums import TA_CENTER, TA_LEFT
-    import os
+    """PDF cantik kemas - 3 layer fallback, takkan return kosong"""
+    no_pusat = report.get('no_pusat','')
+    nama_pusat = report.get('nama_pusat','')
+    nama_kp = report.get('nama_kp','')
+    pep = report.get('peperiksaan','')
+    thn = report.get('tahun','')
+    kes_data = report.get('kes_data', [])
+    tiada = report.get('tiada_kes', False)
 
+    # LAYER 1: FPDF cantik dengan logo
     try:
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm, topMargin=8*mm, bottomMargin=8*mm)
-        story=[]
+        from fpdf import FPDF
+        from PIL import Image
+        import os
 
-        def P(txt, sz=9, bold=False, align=TA_CENTER):
-            return Paragraph(f"<b>{txt}</b>" if bold else txt, ParagraphStyle(f"s{sz}{bold}{align}{id(txt)}", fontName='Helvetica-Bold' if bold else 'Helvetica', fontSize=sz, leading=sz+2, alignment=align))
-
-        W = landscape(A4)[0] - 20*mm
-
-        logo_img=None
-        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/mnt/data/logo_lp.png"]:
+        logo_to_use = None
+        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/tmp/logo_lp_final.png", "/mnt/data/logo_lp.png"]:
             if os.path.exists(lp):
                 try:
-                    logo_img=RLImage(lp, width=28*mm, height=12*mm)
+                    im = Image.open(lp)
+                    tmp = "/tmp/logo_lp_final.png"
+                    im.convert("RGBA").save(tmp, "PNG")
+                    logo_to_use = tmp
                     break
                 except:
-                    pass
+                    try:
+                        # cuba guna terus tanpa convert
+                        logo_to_use = lp
+                        break
+                    except:
+                        pass
 
-        if logo_img:
-            hdr=[[logo_img, P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA",10,True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>",9,True)]]
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.set_auto_page_break(auto=False)
+        pdf.add_page()
+
+        if logo_to_use:
+            try:
+                pdf.image(logo_to_use, x=12, y=6, w=32)
+            except Exception as e:
+                pass
+
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.set_xy(45, 7)
+        pdf.cell(190, 5, "LEMBAGA PEPERIKSAAN", align="C")
+        pdf.set_xy(45, 12)
+        pdf.cell(190, 5, "KEMENTERIAN PENDIDIKAN MALAYSIA", align="C")
+        pdf.set_font("Helvetica", "", 7)
+        pdf.set_xy(250, 7)
+        pdf.cell(37, 4, "LP/Am 90 Pin. 1/2023", align="R")
+        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_xy(250, 11)
+        pdf.cell(37, 7, "BLPP", align="R")
+        pdf.set_line_width(0.4)
+        pdf.line(10, 19, 287, 19)
+        pdf.set_line_width(0.2)
+
+        pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_xy(10, 21)
+        pdf.cell(277, 6, pep_text, align="C")
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_xy(10, 27)
+        pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
+        pdf.line(72, 33.5, 225, 33.5)
+
+        pdf.set_font("Helvetica", "", 6.8)
+        pdf.set_xy(10, 35)
+        arahan = """1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.
+2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
+        pdf.multi_cell(277, 3.2, arahan, align="J")
+
+        y1 = 47
+        pdf.set_font("Helvetica", "B", 8.5)
+        pdf.set_xy(10, y1)
+        pdf.cell(38, 8, "NO. PUSAT", border=1, align="C")
+        pdf.cell(90, 8, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
+        pdf.cell(149, 8, "NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR", border=1, align="C")
+        pdf.set_xy(10, y1+8)
+        pdf.set_font("Helvetica", "B", 10)
+        pdf.cell(38, 8, no_pusat, border=1, align="C")
+        pdf.set_font("Helvetica", "B", 9)
+        pdf.cell(90, 8, nama_pusat[:48], border=1, align="C")
+        pdf.cell(149, 8, nama_kp[:78], border=1, align="C")
+
+        y2 = y1 + 20
+        pdf.set_xy(10, y2)
+        pdf.set_font("Helvetica", "B", 8)
+        pdf.cell(15, 7, "BIL.", border=1, align="C")
+        pdf.cell(38, 7, "ANGKA GILIRAN", border=1, align="C")
+        pdf.cell(42, 7, "NO. PENGENALAN DIRI", border=1, align="C")
+        pdf.cell(91, 7, "KES", border=1, align="C")
+        pdf.cell(91, 7, "TINDAKAN", border=1, align="C")
+
+        pdf.set_font("Helvetica", "", 8.5)
+        if tiada or not kes_data:
+            for i in range(6):
+                yy = y2 + 7 + (i*7)
+                pdf.set_xy(10, yy)
+                pdf.cell(15, 7, "", border=1, align="C")
+                pdf.cell(38, 7, "", border=1, align="C")
+                pdf.cell(42, 7, "", border=1, align="C")
+                pdf.cell(91, 7, "", border=1, align="L")
+                pdf.cell(91, 7, "", border=1, align="L")
         else:
-            hdr=[[P("",1), P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA",10,True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>",9,True)]]
-        ht=Table(hdr, colWidths=[0.2*W,0.6*W,0.2*W])
-        story.append(ht)
-        story.append(Spacer(1,2*mm))
-        line=Table([[""]], colWidths=[W], rowHeights=[0.8])
-        line.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),1,colors.black)]))
-        story.append(line)
+            for i in range(6):
+                yy = y2 + 7 + (i*7)
+                pdf.set_xy(10, yy)
+                if i < len(kes_data):
+                    k = kes_data[i]
+                    pdf.cell(15, 7, str(i+1), border=1, align="C")
+                    pdf.cell(38, 7, str(k.get('angka_giliran',''))[:18], border=1, align="C")
+                    pdf.cell(42, 7, str(k.get('no_ic',''))[:20], border=1, align="C")
+                    pdf.cell(91, 7, str(k.get('kes',''))[:60], border=1, align="L")
+                    pdf.cell(91, 7, str(k.get('tindakan',''))[:60], border=1, align="L")
+                else:
+                    pdf.cell(15, 7, "", border=1, align="C")
+                    pdf.cell(38, 7, "", border=1, align="C")
+                    pdf.cell(42, 7, "", border=1, align="C")
+                    pdf.cell(91, 7, "", border=1, align="L")
+                    pdf.cell(91, 7, "", border=1, align="L")
+
+        yf = y2 + 7 + 42 + 6
+        pdf.set_font("Helvetica", "", 8.5)
+        pdf.set_xy(10, yf)
+        pdf.cell(60, 5, "Pelapor:")
+        pdf.set_xy(160, yf)
+        pdf.cell(60, 5, "Pengesahan:")
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_xy(10, yf+12)
+        pdf.cell(70, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
+        pdf.set_xy(10, yf+16)
+        pdf.cell(70, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
+        pdf.set_xy(160, yf+12)
+        pdf.cell(70, 4, "Tandatangan Penyelia Kawasan/Pegawai Peperiksaan")
+        pdf.line(10, yf+20, 85, yf+20)
+        pdf.line(160, yf+20, 235, yf+20)
+        pdf.set_xy(10, yf+22)
+        pdf.cell(80, 5, "Tarikh: ___________________________")
+        pdf.set_xy(160, yf+22)
+        pdf.cell(80, 5, "Tarikh: ___________________________")
+
+        out = pdf.output(dest='S')
+        if isinstance(out, str):
+            return out.encode('latin1')
+        return bytes(out)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+
+    # LAYER 2: Reportlab simple tanpa logo - pasti jadi
+    try:
+        from io import BytesIO
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.lib import colors
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
+
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=10*mm, leftMargin=10*mm, topMargin=10*mm, bottomMargin=10*mm)
+        story = []
+        def P(txt, sz=9, bold=False):
+            return Paragraph(f"<b>{txt}</b>" if bold else txt, ParagraphStyle(f"s{sz}{bold}{txt[:5]}", fontName='Helvetica-Bold' if bold else 'Helvetica', fontSize=sz, leading=sz+2, alignment=TA_CENTER))
+
+        W = landscape(A4)[0] - 20*mm
+        hdr = [[P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA",10,True), P("LP/Am 90 Pin. 1/2023<br/>BLPP",9,True)]]
+        story.append(Table(hdr, colWidths=[0.8*W,0.2*W]))
+        story.append(Spacer(1,3*mm))
+        story.append(P(f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ... TAHUN ...",11,True))
+        story.append(P("BORANG LAPORAN PENGENDALIAN PEPERIKSAAN",12,True))
         story.append(Spacer(1,3*mm))
 
-        pep=report.get('peperiksaan','')
-        thn=report.get('tahun','')
-        pep_txt=f"PEPERIKSAAN <b>{pep}</b> TAHUN <b>{thn}</b>" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
-        story.append(P(pep_txt,11,True))
-        story.append(Spacer(1,1*mm))
-        story.append(P("<u>BORANG LAPORAN PENGENDALIAN PEPERIKSAAN</u>",12,True))
-        story.append(Spacer(1,3*mm))
-
-        s_a=ParagraphStyle('a', fontName='Helvetica', fontSize=7.2, leading=9, alignment=4)
-        arahan="1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.<br/>2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."
-        story.append(Table([[Paragraph(arahan,s_a)]], colWidths=[W]))
-        story.append(Spacer(1,3*mm))
-
-        s_tdb=ParagraphStyle('tdb', fontName='Helvetica-Bold', fontSize=9, leading=10, alignment=TA_CENTER)
-        s_td=ParagraphStyle('td', fontName='Helvetica', fontSize=8.5, leading=10, alignment=TA_CENTER)
-        s_tdl=ParagraphStyle('tdl', fontName='Helvetica', fontSize=8, leading=9, alignment=TA_LEFT)
-
-        no_pusat=report.get('no_pusat','')
-        nama_pusat=report.get('nama_pusat','')
-        nama_kp=report.get('nama_kp','')
-
-        t1=[[P("NO. PUSAT",8,True), P("NAMA PUSAT PEPERIKSAAN",8,True), P("NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR",8,True)],
-            [Paragraph(f"<b>{no_pusat}</b>",s_tdb), Paragraph(f"<b>{nama_pusat}</b>",s_tdb), Paragraph(f"<b>{nama_kp}</b>",s_tdb)]]
-        tbl1=Table(t1, colWidths=[W*0.14,W*0.34,W*0.52], rowHeights=[8*mm,9*mm])
-        tbl1.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.8,colors.black),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        t1 = [[P("NO. PUSAT",8,True), P("NAMA PUSAT",8,True), P("NAMA KETUA PENGAWAS",8,True)],
+              [P(no_pusat,9,True), P(nama_pusat,9,True), P(nama_kp,9,True)]]
+        tbl1 = Table(t1, colWidths=[W*0.14,W*0.34,W*0.52])
+        tbl1.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
         story.append(tbl1)
         story.append(Spacer(1,3*mm))
 
-        kes_data=report.get('kes_data',[])
-        tiada=report.get('tiada_kes',False)
-        hdr2=[P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. PENGENALAN DIRI",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
-        data2=[hdr2]
+        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. IC",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
+        data2 = [hdr2]
         if tiada or not kes_data:
             for _ in range(6):
-                data2.append([P("",8) for __ in range(5)])
+                data2.append([P("",8) for _ in range(5)])
         else:
             for i,k in enumerate(kes_data,1):
-                data2.append([P(str(i),8), Paragraph(str(k.get('angka_giliran','')),s_td), Paragraph(str(k.get('no_ic','')),s_td), Paragraph(str(k.get('kes','')),s_tdl), Paragraph(str(k.get('tindakan','')),s_tdl)])
+                data2.append([P(str(i),8), P(k.get('angka_giliran',''),8), P(k.get('no_ic',''),8), Paragraph(k.get('kes',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT)), Paragraph(k.get('tindakan',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT))])
             while len(data2)<7:
-                data2.append([P("",8) for __ in range(5)])
-        
-        tbl2=Table(data2, colWidths=[W*0.06,W*0.15,W*0.17,W*0.31,W*0.31])
-        tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.8,colors.black),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+                data2.append([P("",8) for _ in range(5)])
+        tbl2 = Table(data2, colWidths=[W*0.06,W*0.15,W*0.17,W*0.31,W*0.31])
+        tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
         story.append(tbl2)
-        story.append(Spacer(1,8*mm))
-
-        left=Paragraph("Pelapor:<br/><br/><br/>___________________________________________<br/>Tandatangan Ketua Pengawas Peperiksaan/<br/>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br/><br/>Tarikh: __________________________________________", ParagraphStyle('lf', fontName='Helvetica', fontSize=8, leading=10))
-        right=Paragraph("Pengesahan:<br/><br/><br/>______________________________________________<br/>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br/><br/>Tarikh: ____________________________________________", ParagraphStyle('rf', fontName='Helvetica', fontSize=8, leading=10))
-        tbl3=Table([[left,right]], colWidths=[W*0.5,W*0.5])
-        story.append(tbl3)
 
         doc.build(story)
         buffer.seek(0)
         return buffer.getvalue()
     except Exception as e:
-        # Kalau error pun bagi full info, bukan tajuk je
-        try:
-            from reportlab.lib.pagesizes import landscape, A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-            from reportlab.lib.styles import getSampleStyleSheet
-            buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
-            styles = getSampleStyleSheet()
-            story=[]
-            story.append(Paragraph(f"BLPP - {report.get('no_pusat','')} - {report.get('nama_pusat','')}", styles['Heading1']))
-            story.append(Spacer(1,12))
-            story.append(Paragraph(f"Peperiksaan: {report.get('peperiksaan','')} Tahun: {report.get('tahun','')}", styles['Normal']))
-            story.append(Paragraph(f"Nama KP: {report.get('nama_kp','')} PPD: {report.get('ppd','')}", styles['Normal']))
-            story.append(Spacer(1,12))
-            if report.get('tiada_kes'):
-                story.append(Paragraph("TIADA KES LUAR DUGAAN", styles['Heading2']))
-            else:
-                for i,k in enumerate(report.get('kes_data',[]),1):
-                    story.append(Paragraph(f"{i}. {k.get('angka_giliran','')} - {k.get('kes','')} - {k.get('tindakan','')}", styles['Normal']))
-            doc.build(story)
-            buffer.seek(0)
-            return buffer.getvalue()
-        except Exception as e2:
-            return b""
+        import traceback
+        traceback.print_exc()
+
+    # LAYER 3: Paling last - minimal PDF
+    try:
+        from fpdf import FPDF
+        pdf = FPDF(orientation='L', unit='mm', format='A4')
+        pdf.add_page()
+        pdf.set_font("Helvetica","B",14)
+        pdf.cell(0,10,f"BLPP - {no_pusat} - {nama_pusat}", align="C", new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica","",11)
+        pdf.cell(0,8,f"Peperiksaan: {pep} Tahun: {thn}", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0,8,f"Nama KP: {nama_kp}", new_x="LMARGIN", new_y="NEXT")
+        out = pdf.output(dest='S')
+        return out.encode('latin1') if isinstance(out,str) else bytes(out)
+    except:
+        return f"BLPP {no_pusat} {nama_pusat}".encode()
+
 
 
 
