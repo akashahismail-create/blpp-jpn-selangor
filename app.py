@@ -439,147 +439,99 @@ def jana_blpp_html(report):
     return html
 
 
+
 def jana_blpp_pdf(report):
+    """PDF robust - no logo, no HRFlowable - confirm jadi full borang"""
     try:
         from reportlab.lib.pagesizes import landscape, A4
         from reportlab.lib import colors
         from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch, mm
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-        import os
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
         buffer = BytesIO()
-        pagesize_land = landscape(A4)
-        # Margin sama
-        doc = SimpleDocTemplate(buffer, pagesize=pagesize_land, rightMargin=12*mm, leftMargin=12*mm, topMargin=8*mm, bottomMargin=8*mm)
-        styles = getSampleStyleSheet()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
+                                rightMargin=10*mm, leftMargin=10*mm,
+                                topMargin=8*mm, bottomMargin=8*mm)
         story = []
-
-        s_center_b = ParagraphStyle('cb', parent=styles['Normal'], fontSize=10, leading=12, alignment=TA_CENTER, fontName='Helvetica-Bold')
-        s_right = ParagraphStyle('r', parent=styles['Normal'], fontSize=8.5, leading=10, alignment=TA_RIGHT, fontName='Helvetica-Bold')
-        s_center = ParagraphStyle('c', parent=styles['Normal'], fontSize=11, leading=13, alignment=TA_CENTER, fontName='Helvetica-Bold')
-        s_title = ParagraphStyle('t', parent=styles['Normal'], fontSize=12, leading=14, alignment=TA_CENTER, fontName='Helvetica-Bold')
-        s_arahan = ParagraphStyle('a', parent=styles['Normal'], fontSize=7.5, leading=9, alignment=4, fontName='Helvetica')
-        s_th = ParagraphStyle('th', parent=styles['Normal'], fontSize=8, leading=9, alignment=TA_CENTER, fontName='Helvetica-Bold')
-        s_td = ParagraphStyle('td', parent=styles['Normal'], fontSize=9, leading=10, alignment=TA_CENTER, fontName='Helvetica')
-        s_td_bold = ParagraphStyle('tdb', parent=styles['Normal'], fontSize=9, leading=10, alignment=TA_CENTER, fontName='Helvetica-Bold')
-        s_td_left = ParagraphStyle('tdl', parent=styles['Normal'], fontSize=8, leading=9, alignment=TA_LEFT, fontName='Helvetica')
-
-        from reportlab.platypus import Image as RLImage
-        logo_img = None
-        logo_paths = ["/tmp/logo_extracted_1.png", "/tmp/logo_extracted_0.png", "logo_lp.png"]
-        for lp in logo_paths:
-            if os.path.exists(lp):
-                try:
-                    logo_img = RLImage(lp, width=0.7*inch, height=0.5*inch)
-                    break
-                except:
-                    pass
-
-        # Kira lebar content sebenar dokumen
-        content_width = pagesize_land[0] - 24*mm  # 12mm kiri + kanan
-
-        if logo_img:
-            hdr_data = [[logo_img, Paragraph("<b>LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA</b>", s_center_b), Paragraph("<b>LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font></b>", s_right)]]
-        else:
-            hdr_data = [["", Paragraph("<b>LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA</b>", s_center_b), Paragraph("<b>LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font></b>", s_right)]]
         
-        hdr_table = Table(hdr_data, colWidths=[0.9*inch, content_width - 0.9*inch - 1.5*inch, 1.5*inch])
-        hdr_table.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(-1,-1),'CENTER')]))
-        story.append(hdr_table)
-        story.append(Spacer(1, 4))
-        from reportlab.platypus import HRFlowable
-        story.append(HRFlowable(width=content_width, thickness=1.2, color=colors.black))
-        story.append(Spacer(1, 6))
-
-        peperiksaan = report.get('peperiksaan','')
-        tahun = report.get('tahun','')
-        if peperiksaan and tahun:
-            pep_text = f"PEPERIKSAAN <b>{peperiksaan}</b> TAHUN <b>{tahun}</b>"
-        else:
-            pep_text = "PEPERIKSAAN ........................................ TAHUN ........................................"
+        # Styles simple
+        def P(txt, sz=9, bold=False, align=TA_CENTER):
+            name = f"s{sz}{bold}{align}"
+            return Paragraph(f"<b>{txt}</b>" if bold else txt,
+                             ParagraphStyle(name, fontName='Helvetica-Bold' if bold else 'Helvetica',
+                                            fontSize=sz, leading=sz+2, alignment=align))
         
-        story.append(Paragraph(pep_text, s_center))
-        story.append(Spacer(1, 3))
-        story.append(Paragraph("<b><u>BORANG LAPORAN PENGENDALIAN PEPERIKSAAN</u></b>", s_title))
-        story.append(Spacer(1, 6))
+        s_cb = ParagraphStyle('cb', fontName='Helvetica-Bold', fontSize=10, leading=12, alignment=TA_CENTER)
+        s_rb = ParagraphStyle('rb', fontName='Helvetica-Bold', fontSize=9, leading=11, alignment=2)  # RIGHT=2
+        s_c = ParagraphStyle('c', fontName='Helvetica-Bold', fontSize=11, leading=13, alignment=TA_CENTER)
+        s_t = ParagraphStyle('t', fontName='Helvetica-Bold', fontSize=12, leading=14, alignment=TA_CENTER)
+        s_a = ParagraphStyle('a', fontName='Helvetica', fontSize=7.2, leading=9, alignment=4)
+        s_th = ParagraphStyle('th', fontName='Helvetica-Bold', fontSize=8, leading=9, alignment=TA_CENTER)
+        s_td = ParagraphStyle('td', fontName='Helvetica', fontSize=8.5, leading=10, alignment=TA_CENTER)
+        s_tdb = ParagraphStyle('tdb', fontName='Helvetica-Bold', fontSize=9, leading=10, alignment=TA_CENTER)
+        s_tdl = ParagraphStyle('tdl', fontName='Helvetica', fontSize=8, leading=9, alignment=TA_LEFT)
 
-        # FIX UTAMA: Arahan masuk dalam Table sama lebar dengan table lain, jadi tak terkeluar
-        arahan_text = "1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.<br/>2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."
-        # Bungkus arahan dalam table sama lebar dengan table bawah
-        arahan_para = Paragraph(arahan_text, s_arahan)
-        arahan_table = Table([[arahan_para]], colWidths=[content_width])
-        arahan_table.setStyle(TableStyle([
-            ('LEFTPADDING',(0,0),(-1,-1),0),
-            ('RIGHTPADDING',(0,0),(-1,-1),0),
-        ]))
-        story.append(arahan_table)
-        story.append(Spacer(1, 8))
+        W = landscape(A4)[0] - 20*mm
+
+        # Header tanpa logo
+        hdr = [[P("", 1), P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA", 10, True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>", 9, True)]]
+        ht = Table(hdr, colWidths=[0.2*W, 0.6*W, 0.2*W])
+        ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        story.append(ht)
+        story.append(Spacer(1, 2*mm))
+        # Garis - guna Table bukan HRFlowable
+        line = Table([[""]], colWidths=[W], rowHeights=[0.8])
+        line.setStyle(TableStyle([('LINEBELOW',(0,0),(-1,-1),1,colors.black)]))
+        story.append(line)
+        story.append(Spacer(1, 3*mm))
+
+        pep = report.get('peperiksaan','')
+        thn = report.get('tahun','')
+        pep_txt = f"PEPERIKSAAN <b>{pep}</b> TAHUN <b>{thn}</b>" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
+        story.append(P(pep_txt, 11, True))
+        story.append(Spacer(1, 1*mm))
+        story.append(P("<u>BORANG LAPORAN PENGENDALIAN PEPERIKSAAN</u>", 12, True))
+        story.append(Spacer(1, 3*mm))
+
+        arahan = "1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.<br/>2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."
+        story.append(Table([[Paragraph(arahan, s_a)]], colWidths=[W]))
+        story.append(Spacer(1, 3*mm))
 
         no_pusat = report.get('no_pusat','')
         nama_pusat = report.get('nama_pusat','')
         nama_kp = report.get('nama_kp','')
         
-        # Table 1 - lebar penuh content_width, sama dengan arahan
-        t1_data = [
-            [Paragraph("<b>NO. PUSAT</b>", s_th), Paragraph("<b>NAMA PUSAT PEPERIKSAAN</b>", s_th), Paragraph("<b>NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR</b>", s_th)],
-            [Paragraph(f"<b>{no_pusat}</b>", s_td_bold), Paragraph(f"<b>{nama_pusat}</b>", s_td_bold), Paragraph(f"<b>{nama_kp}</b>", s_td_bold)]
-        ]
-        # Bahagi content_width ikut nisbah asal
-        w1 = content_width * 0.14
-        w2 = content_width * 0.34
-        w3 = content_width * 0.52
-        t1 = Table(t1_data, colWidths=[w1, w2, w3], rowHeights=[0.28*inch, 0.30*inch])
-        t1.setStyle(TableStyle([
-            ('GRID',(0,0),(-1,-1),0.9,colors.black),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('ALIGN',(0,0),(-1,-1),'CENTER'),
-            ('LEFTPADDING',(0,0),(-1,-1),4),
-            ('RIGHTPADDING',(0,0),(-1,-1),4),
-        ]))
-        story.append(t1)
-        story.append(Spacer(1, 6))
+        t1 = [[P("NO. PUSAT", 8, True), P("NAMA PUSAT PEPERIKSAAN", 8, True), P("NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR", 8, True)],
+              [Paragraph(f"<b>{no_pusat}</b>", s_tdb), Paragraph(f"<b>{nama_pusat}</b>", s_tdb), Paragraph(f"<b>{nama_kp}</b>", s_tdb)]]
+        tbl1 = Table(t1, colWidths=[W*0.14, W*0.34, W*0.52], rowHeights=[8*mm, 9*mm])
+        tbl1.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.8,colors.black),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        story.append(tbl1)
+        story.append(Spacer(1, 3*mm))
 
         kes_data = report.get('kes_data', [])
-        tiada_kes = report.get('tiada_kes', False)
-
-        header2 = [Paragraph("<b>BIL.</b>", s_th), Paragraph("<b>ANGKA GILIRAN</b>", s_th), Paragraph("<b>NO. PENGENALAN DIRI</b>", s_th), Paragraph("<b>KES</b>", s_th), Paragraph("<b>TINDAKAN</b>", s_th)]
-        data2 = [header2]
-
-        if tiada_kes or not kes_data:
+        tiada = report.get('tiada_kes', False)
+        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. PENGENALAN DIRI",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
+        data2 = [hdr2]
+        if tiada or not kes_data:
             for _ in range(6):
-                data2.append([Paragraph("", s_td) for __ in range(5)])
+                data2.append([P("",8) for __ in range(5)])
         else:
             for i,k in enumerate(kes_data,1):
-                data2.append([
-                    Paragraph(str(i), s_td),
-                    Paragraph(str(k.get('angka_giliran','')), s_td),
-                    Paragraph(str(k.get('no_ic','')), s_td),
-                    Paragraph(str(k.get('kes','')), s_td_left),
-                    Paragraph(str(k.get('tindakan','')), s_td_left)
-                ])
+                data2.append([P(str(i),8), Paragraph(str(k.get('angka_giliran','')), s_td), Paragraph(str(k.get('no_ic','')), s_td), Paragraph(str(k.get('kes','')), s_tdl), Paragraph(str(k.get('tindakan','')), s_tdl)])
             while len(data2) < 7:
-                data2.append([Paragraph("", s_td) for __ in range(5)])
+                data2.append([P("",8) for __ in range(5)])
+        
+        tbl2 = Table(data2, colWidths=[W*0.06, W*0.15, W*0.17, W*0.31, W*0.31])
+        tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.8,colors.black),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        story.append(tbl2)
+        story.append(Spacer(1, 8*mm))
 
-        # Table 2 - lebar penuh content_width juga, sama dengan arahan & table 1
-        cw = content_width
-        t2 = Table(data2, colWidths=[cw*0.06, cw*0.15, cw*0.17, cw*0.31, cw*0.31], rowHeights=[0.26*inch]+[0.32*inch]*(len(data2)-1))
-        t2.setStyle(TableStyle([
-            ('GRID',(0,0),(-1,-1),0.9,colors.black),
-            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
-            ('ALIGN',(0,0),(-1,-1),'CENTER'),
-            ('LEFTPADDING',(0,0),(-1,-1),4),
-            ('RIGHTPADDING',(0,0),(-1,-1),4),
-        ]))
-        story.append(t2)
-        story.append(Spacer(1, 14))
-
-        left_f = Paragraph("Pelapor:<br/><br/>___________________________________________<br/>Tandatangan Ketua Pengawas Peperiksaan/<br/>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br/><br/>Tarikh: __________________________________________", ParagraphStyle('lf', fontSize=7.8, leading=9.5))
-        right_f = Paragraph("Pengesahan:<br/><br/>______________________________________________<br/>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br/><br/>Tarikh: ____________________________________________", ParagraphStyle('rf', fontSize=7.8, leading=9.5))
-        t3 = Table([[left_f, right_f]], colWidths=[cw*0.5, cw*0.5])
-        t3.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'TOP'),('ALIGN',(0,0),(-1,-1),'LEFT')]))
-        story.append(t3)
+        left = Paragraph("Pelapor:<br/><br/><br/>___________________________________________<br/>Tandatangan Ketua Pengawas Peperiksaan/<br/>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br/><br/>Tarikh: __________________________________________", ParagraphStyle('lf', fontName='Helvetica', fontSize=8, leading=10))
+        right = Paragraph("Pengesahan:<br/><br/><br/>______________________________________________<br/>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br/><br/>Tarikh: ____________________________________________", ParagraphStyle('rf', fontName='Helvetica', fontSize=8, leading=10))
+        tbl3 = Table([[left, right]], colWidths=[W*0.5, W*0.5])
+        story.append(tbl3)
 
         doc.build(story)
         buffer.seek(0)
@@ -587,18 +539,31 @@ def jana_blpp_pdf(report):
     except Exception as e:
         import traceback
         traceback.print_exc()
+        # Fallback paling simple - tetap tulis full info
         try:
             from reportlab.lib.pagesizes import landscape, A4
-            from reportlab.platypus import SimpleDocTemplate, Paragraph
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
             from reportlab.lib.styles import getSampleStyleSheet
             buffer = BytesIO()
             doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
             styles = getSampleStyleSheet()
-            doc.build([Paragraph(f"BLPP {report.get('no_pusat','')}", styles['Normal'])])
+            story = []
+            story.append(Paragraph(f"BLPP - {report.get('no_pusat','')} - {report.get('nama_pusat','')}", styles['Heading1']))
+            story.append(Spacer(1, 12))
+            story.append(Paragraph(f"Peperiksaan: {report.get('peperiksaan','')} Tahun: {report.get('tahun','')}", styles['Normal']))
+            story.append(Paragraph(f"Nama KP: {report.get('nama_kp','')} PPD: {report.get('ppd','')}", styles['Normal']))
+            story.append(Spacer(1, 12))
+            if report.get('tiada_kes'):
+                story.append(Paragraph("TIADA KES LUAR DUGAAN", styles['Heading2']))
+            else:
+                for i,k in enumerate(report.get('kes_data',[]),1):
+                    story.append(Paragraph(f"{i}. {k.get('angka_giliran','')} - {k.get('kes','')} - {k.get('tindakan','')}", styles['Normal']))
+            doc.build(story)
             buffer.seek(0)
             return buffer.getvalue()
         except:
             return b""
+
 
 
 # ========== LOGIN ==========
