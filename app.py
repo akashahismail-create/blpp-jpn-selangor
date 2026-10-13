@@ -591,6 +591,14 @@ if "login" not in st.session_state:
     st.session_state.user = None
 
 if not st.session_state.login:
+    # FORCE CLEAN OLD CACHE - penting untuk KP001
+    import os
+    try:
+        if os.path.exists(USERS_FILE):
+            os.remove(USERS_FILE)
+    except:
+        pass
+    
     st.markdown('<div class="header-biru"><h1>📋 SISTEM PENGURUSAN PUSAT PEPERIKSAAN</h1><h2>BLPP - LP/Am 90 Pin. 1/2023</h2><h3>JPN SELANGOR - 504 PUSAT</h3></div>', unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,1.2,1])
@@ -602,12 +610,13 @@ if not st.session_state.login:
         password = st.text_input("Kata Laluan", type="password")
         
         if st.button("Log Masuk", type="primary", use_container_width=True):
-            # Cari user
             found = None
+            uid_input = id_pengguna.strip().upper()
+            pwd_input = password.strip().lower()  # FIX: lowercase password
             for u in users:
-                if u["id"].upper() == id_pengguna.strip().upper() and u["password"] == password:
-                    # Check peranan match
-                    if peranan.startswith(u["peranan"]):
+                # FIX: password check lowercase
+                if u["id"].upper() == uid_input and str(u["password"]).lower() == pwd_input:
+                    if peranan.startswith(u["peranan"]) or u["peranan"] in peranan:
                         found = u
                         break
             if found:
@@ -616,9 +625,9 @@ if not st.session_state.login:
                 st.success(f"Selamat datang {found['nama']}!")
                 st.rerun()
             else:
-                st.error("ID atau Kata Laluan salah! Cuba: KP001 / kp001")
+                st.error(f"ID atau Kata Laluan salah! Cuba: KP001 / kp001 (Debug: {len(users)} users loaded)")
         
-        st.markdown('<div style="margin-top:14px; padding:10px; background:#F0F7FF; border-radius:8px; font-size:11px;"><b>Demo Login:</b><br/>KP: KP001 / kp001 (20 sample)<br/>PPD: PPD01 / ppd01 (10 PPD)<br/>JPN: JPN001 / jpn123<br/>LP: LP001 / lp123</div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top:14px; padding:10px; background:#F0F7FF; border-radius:8px; font-size:11px;"><b>Demo Login:</b><br/>KP: KP001 / kp001 (504 pusat)<br/>PPD: PPD01 / ppd01 (10 PPD)<br/>JPN: JPN001 / jpn123<br/>LP: LP001 / lp123<br/>BH562 / bh562 juga boleh</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
