@@ -481,7 +481,7 @@ def jana_blpp_pdf(report):
 
         if logo_to_use:
             try:
-                pdf.image(logo_to_use, x=12, y=4, w=26)
+                pdf.image(logo_to_use, x=10, y=4, w=32)
             except Exception as e:
                 pass
 
@@ -496,10 +496,6 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 13)
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
-        pdf.set_line_width(0.4)
-        pdf.line(10, 21, 287, 21)
-        pdf.set_line_width(0.2)
-
         pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_xy(10, 21)
@@ -507,7 +503,6 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 12)
         pdf.set_xy(10, 27)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
-        pdf.line(72, 33.5, 225, 33.5)
 
         pdf.set_font("Helvetica", "", 6.8)
         pdf.set_xy(10, 35)
