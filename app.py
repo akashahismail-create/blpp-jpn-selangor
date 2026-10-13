@@ -105,6 +105,13 @@ PPD_LIST = [
 ]
 
 
+
+# AUTO FIX: ensure centers always available
+def ensure_centers(centers):
+    if not centers or len(centers)==0:
+        return get_all_pusat()
+    return centers
+
 def get_all_pusat():
     """Return 504 list even without Excel"""
     centers=[]
@@ -713,7 +720,7 @@ with col_content:
                 exam_mode = "SPM"
         
             if not centers:
-                st.error("Data pusat tidak ditemui! Sila pastikan file Excel ada di /tmp/blpp_data/")
+                st.error("Memuatkan data auto 504 pusat...")
                 st.stop()
         
             # Step 2: Pilih Daerah
