@@ -243,33 +243,87 @@ USERS_FILE = os.path.join(DATA_DIR, "users.json")
 REPORTS_FILE = os.path.join(DATA_DIR, "blpp_reports.json")
 
 def load_users():
+    # KP001 style - 504 KP full - FIX: generate 504 bukan 20 saja
     if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(USERS_FILE, "r") as f:
+                data = json.load(f)
+                # kalau dah ada file tapi masih format lama 20 saja, regenerate ke 504
+                kp_count = len([u for u in data if u.get("peranan")=="KP"])
+                if kp_count >= 500:
+                    return data
+                else:
+                    os.remove(USERS_FILE)
+        except:
+            pass
+
     # Default users - 504 KP + admin
     users = []
     # Admin JPN
     users.append({"id":"JPN001","nama":"Admin JPN Selangor","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
+    users.append({"id":"JPN002","nama":"JPN Selangor 2","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
     # LP
     users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"lp123","telefon":""})
     # 10 PPD
     for i, ppd in enumerate(PPD_LIST):
         users.append({"id":f"PPD{i+1:02d}","nama":f"PPD {ppd}","peranan":"PPD","ppd":ppd,"no_pusat":"-","password":f"ppd{i+1:02d}","telefon":""})
-    # 504 KP (sample 20 dulu, nanti boleh import CSV)
-    for i in range(1, 21):
-        ppd = PPD_LIST[i % 10]
-        users.append({
-            "id":f"KP{i:03d}",
-            "nama":f"Ketua Pengawas {i}",
-            "peranan":"KP",
-            "ppd":ppd,
-            "no_pusat":f"B{100+i:03d}",
-            "nama_pusat":f"SMK Contoh {i} - {ppd}",
-            "password":f"kp{i:03d}",
-            "telefon":""
-        })
-    save_users(users)
+
+    # Cuba load SPM centers sebenar untuk dapat Nama Pusat
+    spm_centers = []
+    try:
+        spm_centers = load_spm_centers()
+    except:
+        spm_centers = []
+
+    if spm_centers and len(spm_centers) >= 10:
+        for idx, c in enumerate(spm_centers[:504], 1):
+            no_pusat = str(c.get("No_Pusat","")).strip().upper()
+            nama_pusat = str(c.get("Nama_Pusat") or c.get("Nama_Sekolah","")).strip()
+            ppd = str(c.get("PPD","")).strip()
+            uid = f"KP{idx:03d}"
+            users.append({
+                "id": uid,
+                "nama": f"KP {uid} - {nama_pusat[:30]}",
+                "peranan": "KP",
+                "ppd": ppd,
+                "no_pusat": no_pusat,
+                "nama_pusat": nama_pusat,
+                "password": uid.lower(),
+                "telefon": ""
+            })
+    else:
+        # Fallback 504 ikut mapping BA-BK
+        for i in range(1, 505):
+            ppd = PPD_LIST[(i-1) % 10]
+            kod = list(KOD_PPD_MAPPING.keys())[(i-1) // 60 % len(KOD_PPD_MAPPING)]
+            num = (i-1) % 60 + 1
+            no_pusat = f"{kod}{num:03d}"
+            nama_pusat = f"SMK {ppd} {num}"
+            if i==1:
+                no_pusat="BH562"
+                nama_pusat="MAAHAD SAINS AL-QURAN AL-AMIN"
+                ppd="Petaling Perdana"
+            elif i==2:
+                no_pusat="BC001"
+                nama_pusat="SMK Sepang"
+                ppd="Sepang"
+            uid = f"KP{i:03d}"
+            users.append({
+                "id": uid,
+                "nama": f"KP {uid} - {nama_pusat[:30]}",
+                "peranan": "KP",
+                "ppd": ppd,
+                "no_pusat": no_pusat,
+                "nama_pusat": nama_pusat,
+                "password": uid.lower(),
+                "telefon": ""
+            })
+
+    # Legacy BH562 / BC001 tetap boleh login
+    users.append({"id":"BH562","nama":"MAAHAD SAINS AL-QURAN AL-AMIN (Legacy)","peranan":"KP","ppd":"Petaling Perdana","no_pusat":"BH562","nama_pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","password":"bh562","telefon":""})
+    users.append({"id":"BC001","nama":"SMK Sepang (Legacy)","peranan":"KP","ppd":"Sepang","no_pusat":"BC001","nama_pusat":"SMK Sepang","password":"bc001","telefon":""})
     return users
+
 
 def save_users(users):
     with open(USERS_FILE, "w") as f:
