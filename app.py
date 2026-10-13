@@ -619,16 +619,21 @@ def jana_blpp_pdf(report):
         story.append(tbl1)
         story.append(Spacer(1,3*mm))
 
-        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. IC",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
-        data2 = [hdr2]
+        hdr2 = [P("BIL.",8,True), P("ANGKA GILIRAN",8,True), P("NO. PENGENALAN DIRI",8,True), P("KES",8,True), P("TINDAKAN",8,True)]
+        # SEBIJIK ASAL: 1 header + 1 kotak besar
+        big_row = [P("",8) for _ in range(5)]
         if tiada or not kes_data:
-            for _ in range(6):
-                data2.append([P("",8) for _ in range(5)])
+            data2 = [hdr2, big_row]
         else:
-            for i,k in enumerate(kes_data,1):
-                data2.append([P(str(i),8), P(k.get('angka_giliran',''),8), P(k.get('no_ic',''),8), Paragraph(k.get('kes',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT)), Paragraph(k.get('tindakan',''), ParagraphStyle('l', fontSize=8, alignment=TA_LEFT))])
-            while len(data2)<7:
-                data2.append([P("",8) for _ in range(5)])
+            # Isi dalam satu baris besar
+            bil_txt = "<br/>".join([str(i+1) for i in range(len(kes_data))])
+            ang_txt = "<br/>".join([k.get('angka_giliran','') for k in kes_data])
+            ic_txt = "<br/>".join([k.get('no_ic','') for k in kes_data])
+            kes_txt = "<br/>".join([k.get('kes','') for k in kes_data])
+            tind_txt = "<br/>".join([k.get('tindakan','') for k in kes_data])
+            big_row = [P(bil_txt,8), P(ang_txt,8), P(ic_txt,8), P(kes_txt,8), P(tind_txt,8)]
+            data2 = [hdr2, big_row]
+
         tbl2 = Table(data2, colWidths=[W*0.06,W*0.15,W*0.17,W*0.31,W*0.31])
         tbl2.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.6,colors.black)]))
         story.append(tbl2)
