@@ -499,11 +499,11 @@ def jana_blpp_pdf(report):
         pdf.set_xy(10, 28)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
 
-        pdf.set_font("Helvetica", "", 6.5)
+        pdf.set_font("Helvetica", "", 9.5)
         pdf.set_xy(10, 36)
         arahan = """1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.
 2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
-        pdf.multi_cell(277, 3.0, arahan, align="J")
+        pdf.multi_cell(277, 4.2, arahan, align="J")
 
         y1 = 48
         pdf.set_xy(10, y1)
