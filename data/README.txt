@@ -1,1 +1,0 @@
-Letak file Excel 504 pusat di sini - auto detect
