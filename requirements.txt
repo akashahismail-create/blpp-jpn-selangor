@@ -5,3 +5,4 @@ reportlab
 Pillow
 gspread
 google-auth
+fpdf2
