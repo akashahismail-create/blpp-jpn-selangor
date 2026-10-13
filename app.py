@@ -523,12 +523,12 @@ def jana_blpp_pdf(report):
 
         pdf.set_xy(10, y1+10)
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(53, 12, no_pusat, border=1, align="C")
+        pdf.cell(53, 14, no_pusat, border=1, align="C")
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(133, 12, nama_pusat[:60], border=1, align="C")
-        pdf.cell(91, 12, nama_kp[:45], border=1, align="C")
+        pdf.cell(133, 14, nama_pusat[:60], border=1, align="C")
+        pdf.cell(91, 14, nama_kp[:45], border=1, align="C")
 
-        y2 = y1 + 26
+        y2 = y1 + 30
         pdf.set_xy(10, y2)
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.cell(15, 10, "BIL.", border=1, align="C")
