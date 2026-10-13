@@ -508,11 +508,11 @@ def jana_blpp_pdf(report):
         y1 = 48
         pdf.set_xy(10, y1)
         pdf.set_font("Helvetica", "B", 8.5)
-        pdf.cell(38, 10, "NO. PUSAT", border=1, align="C")
-        pdf.cell(90, 10, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
-        x3 = 138
+        pdf.cell(53, 10, "NO. PUSAT", border=1, align="C")
+        pdf.cell(133, 10, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
+        x3 = 196
         pdf.set_xy(x3, y1)
-        pdf.cell(149, 10, "", border=1)
+        pdf.cell(91, 10, "", border=1)
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.set_xy(x3, y1)
         pdf.cell(149, 3.5, "NAMA KETUA PENGAWAS", align="C")
@@ -523,10 +523,10 @@ def jana_blpp_pdf(report):
 
         pdf.set_xy(10, y1+10)
         pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(38, 10, no_pusat, border=1, align="C")
+        pdf.cell(53, 10, no_pusat, border=1, align="C")
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(90, 10, nama_pusat[:48], border=1, align="C")
-        pdf.cell(149, 10, nama_kp[:78], border=1, align="C")
+        pdf.cell(133, 10, nama_pusat[:60], border=1, align="C")
+        pdf.cell(91, 10, nama_kp[:45], border=1, align="C")
 
         y2 = y1 + 24
         pdf.set_xy(10, y2)
