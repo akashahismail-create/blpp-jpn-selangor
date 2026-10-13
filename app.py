@@ -104,31 +104,6 @@ PPD_LIST = [
     "Klang", "Kuala Langat", "Kuala Selangor", "Hulu Selangor", "Sepang", "Sabak Bernam"
 ]
 
-
-
-# AUTO FIX: ensure centers always available
-def ensure_centers(centers):
-    if not centers or len(centers)==0:
-        return get_all_pusat()
-    return centers
-
-def get_all_pusat():
-    """Return 504 list even without Excel"""
-    centers=[]
-    for kod, ppd in KOD_PPD_MAPPING.items():
-        for j in range(1, 60):
-            if len(centers)>=504:
-                break
-            no=f"{kod}{j:03d}"
-            centers.append({"No Pusat": no, "Nama Pusat": f"SMK {ppd} {j}", "PPD": ppd})
-        if len(centers)>=504:
-            break
-    # Force critical
-    centers[0]={"No Pusat":"BH562","Nama Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana"}
-    centers[1]={"No Pusat":"BC001","Nama Pusat":"SMK Sepang","PPD":"Sepang"}
-    centers[2]={"No Pusat":"BA001","Nama Pusat":"SMK Klang 1","PPD":"Klang"}
-    return centers
-
 KOD_PPD_MAPPING = {
     "BA": "Klang",
     "BB": "Kuala Langat",
@@ -268,31 +243,32 @@ USERS_FILE = os.path.join(DATA_DIR, "users.json")
 REPORTS_FILE = os.path.join(DATA_DIR, "blpp_reports.json")
 
 def load_users():
-    # FIXED: Balik ke KP001 style yang senang - KP001/kp001 sampai KP504
-    # Jika file lama BH562 wujud, delete dan regenerate KP001
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, "r") as f:
                 data = json.load(f)
-                # Jika masih ada format BH562 (No Pusat), regenerate ke KP001
-                has_bh = any(u.get("id","").startswith("B") and len(u.get("id",""))==5 for u in data if u.get("peranan")=="KP")
-                if has_bh and not any(u.get("id","").startswith("KP") for u in data):
+                # Auto-migrate old KP001 format to No Pusat format jika masih ada
+                has_old = any(u.get("id","").startswith("KP") for u in data if u.get("peranan")=="KP")
+                if has_old:
+                    # regenerate
                     os.remove(USERS_FILE)
                 else:
-                    # Kalau dah ada KP, pakai terus
-                    if any(u.get("id","").startswith("KP") for u in data):
-                        return data
+                    return data
         except:
             pass
 
-    # Generate baru - KP001 style
+    # Default users - 504 KP ikut No Pusat + admin
     users = []
+    # Admin JPN
     users.append({"id":"JPN001","nama":"Admin JPN Selangor","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
+    # LP
     users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"lp123","telefon":""})
+    # 10 PPD
     for i, ppd in enumerate(PPD_LIST):
         users.append({"id":f"PPD{i+1:02d}","nama":f"PPD {ppd}","peranan":"PPD","ppd":ppd,"no_pusat":"-","password":f"ppd{i+1:02d}","telefon":""})
 
-    # 504 KP - ID KP001 Password kp001
+    # 504 KP - ID & Password ikut No Pusat (contoh BH562)
+    # Cuba load dari data Excel SPM 504 pusat
     spm_centers = []
     try:
         spm_centers = load_spm_centers()
@@ -300,61 +276,58 @@ def load_users():
         spm_centers = []
 
     if spm_centers and len(spm_centers) >= 10:
-        idx=1
-        for c in spm_centers[:504]:
-            no_pusat = str(c.get("No_Pusat","")).strip().upper()
+        # Guna data sebenar 504 pusat
+        for c in spm_centers:
+            no_pusat = str(c.get("No_Pusat","")).strip()
             nama_pusat = str(c.get("Nama_Pusat") or c.get("Nama_Sekolah","")).strip()
             ppd = str(c.get("PPD","")).strip()
-            uid = f"KP{idx:03d}"
+            if not no_pusat:
+                continue
+            # ID = No Pusat (BH562), Password = no pusat lowercase (bh562)
             users.append({
-                "id": uid,
-                "nama": f"KP {uid} - {nama_pusat[:25]}",
+                "id": no_pusat.upper(),
+                "nama": f"KP {no_pusat} - {nama_pusat[:30]}",
                 "peranan": "KP",
                 "ppd": ppd,
-                "no_pusat": no_pusat,
+                "no_pusat": no_pusat.upper(),
                 "nama_pusat": nama_pusat,
-                "password": uid.lower(),
+                "password": no_pusat.lower(),  # password ikut no pusat lowercase
                 "telefon": ""
             })
-            idx+=1
     else:
-        for i in range(1, 505):
-            uid = f"KP{i:03d}"
-            # mapping no pusat untuk display
-            kod_list = list(KOD_PPD_MAPPING.keys())
-            kod = kod_list[(i-1)//60 % len(kod_list)]
-            num = (i-1)%60 + 1
-            no_pusat = f"{kod}{num:03d}"
-            if i==1:
-                no_pusat="BH562"
-                nama_pusat="MAAHAD SAINS AL-QURAN AL-AMIN"
-                ppd="Petaling Perdana"
-            elif i==2:
-                no_pusat="BC001"
-                nama_pusat="SMK Sepang"
-                ppd="Sepang"
-            else:
-                ppd=KOD_PPD_MAPPING[kod]
-                nama_pusat=f"SMK {ppd} {num}"
+        # Fallback - generate sample ikut format No Pusat sebenar Selangor (BA-BK)
+        # Format Selangor: BA001, BH562 dll
+        sample_nos = []
+        # Generate 504 ikut kod PPD
+        count = 0
+        for kod, ppd in KOD_PPD_MAPPING.items():
+            for j in range(1, 60):  # 60 per PPD anggaran
+                if count >= 504:
+                    break
+                no = f"{kod}{j:03d}"
+                # Elak BH562 duplicate check
+                sample_nos.append((no, f"SMK {ppd} {j}", ppd))
+                count += 1
+            if count >= 504:
+                break
+        # Pastikan BH562 ada (contoh kau)
+        if not any(no=="BH562" for no,_,_ in sample_nos):
+            sample_nos[0] = ("BH562", "MAAHAD SAINS AL-QURAN AL-AMIN", "Petaling Perdana")
+
+        for no_pusat, nama_pusat, ppd in sample_nos[:504]:
             users.append({
-                "id": uid,
-                "nama": f"KP {uid} - {nama_pusat[:25]}",
+                "id": no_pusat.upper(),
+                "nama": f"KP {no_pusat}",
                 "peranan": "KP",
                 "ppd": ppd,
-                "no_pusat": no_pusat,
+                "no_pusat": no_pusat.upper(),
                 "nama_pusat": nama_pusat,
-                "password": uid.lower(),
+                "password": no_pusat.lower(),
                 "telefon": ""
             })
 
-
-def save_users():
-    try:
-        with open(USERS_FILE, 'w') as f:
-            json.dump(load_users(), f, indent=2)
-    except:
-        pass
-
+    save_users(users)
+    return users
 
 def save_users(users):
     with open(USERS_FILE, "w") as f:
@@ -722,7 +695,7 @@ with col_content:
                 exam_mode = "SPM"
         
             if not centers:
-                st.error("Memuatkan data auto 504 pusat...")
+                st.error("Data pusat tidak ditemui! Sila pastikan file Excel ada di /tmp/blpp_data/")
                 st.stop()
         
             # Step 2: Pilih Daerah
