@@ -505,7 +505,7 @@ def jana_blpp_pdf(report):
 2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
         pdf.multi_cell(277, 4.2, arahan, align="J")
 
-        y1 = 48
+        y1 = 58
         pdf.set_xy(10, y1)
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.cell(53, 10, "NO. PUSAT", border=1, align="C")
