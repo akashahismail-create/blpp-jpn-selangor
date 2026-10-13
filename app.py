@@ -481,7 +481,7 @@ def jana_blpp_pdf(report):
 
         if logo_to_use:
             try:
-                pdf.image(logo_to_use, x=12, y=6, w=32)
+                pdf.image(logo_to_use, x=12, y=3, w=22)
             except Exception as e:
                 pass
 
@@ -497,25 +497,25 @@ def jana_blpp_pdf(report):
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
         pdf.set_line_width(0.4)
-        pdf.line(10, 19, 287, 19)
+        pdf.line(10, 24, 287, 24)
         pdf.set_line_width(0.2)
 
         pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
         pdf.set_font("Helvetica", "B", 11)
-        pdf.set_xy(10, 21)
+        pdf.set_xy(10, 26)
         pdf.cell(277, 6, pep_text, align="C")
         pdf.set_font("Helvetica", "B", 12)
-        pdf.set_xy(10, 27)
+        pdf.set_xy(10, 32)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
-        pdf.line(72, 33.5, 225, 33.5)
+        pdf.line(72, 38.5, 225, 38.5)
 
         pdf.set_font("Helvetica", "", 6.8)
-        pdf.set_xy(10, 35)
+        pdf.set_xy(10, 40)
         arahan = """1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.
 2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
         pdf.multi_cell(277, 3.2, arahan, align="J")
 
-        y1 = 47
+        y1 = 52
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.set_xy(10, y1)
         pdf.cell(38, 8, "NO. PUSAT", border=1, align="C")
