@@ -475,8 +475,21 @@ def jana_blpp_pdf(report):
 
         W = landscape(A4)[0] - 20*mm
 
-        # Header tanpa logo
-        hdr = [[P("", 1), P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA", 10, True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>", 9, True)]]
+        # Header dengan logo jika ada
+        from reportlab.platypus import Image as RLImage
+        import os
+        logo_img = None
+        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/mnt/data/logo_lp.png"]:
+            if os.path.exists(lp):
+                try:
+                    logo_img = RLImage(lp, width=28*mm, height=12*mm)
+                    break
+                except:
+                    pass
+        if logo_img:
+            hdr = [[logo_img, P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA", 10, True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>", 9, True)]]
+        else:
+            hdr = [[P("", 1), P("LEMBAGA PEPERIKSAAN<br/>KEMENTERIAN PENDIDIKAN MALAYSIA", 10, True), P("LP/Am 90 Pin. 1/2023<br/><font size=12>BLPP</font>", 9, True)]]
         ht = Table(hdr, colWidths=[0.2*W, 0.6*W, 0.2*W])
         ht.setStyle(TableStyle([('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
         story.append(ht)
