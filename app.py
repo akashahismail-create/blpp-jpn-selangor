@@ -138,7 +138,7 @@ def ensure_centers(centers):
 
 PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}
 
-PEPERIKSAAN_LIST = ["SPM 2026", "SPM Ulangan 2026", "STPM 2026", "MUET 2026", "Ujian Amali Sains SPM", "STAM 2026"]
+PEPERIKSAAN_LIST = ["SPM 2026", "SPM Ulangan 2026", "Ujian Amali Sains SPM", "STAM 2026"]  # FIX: STPM & MUET dibuang ikut request Kashah
 
 JENIS_PEPERIKSAAN = ["Peperiksaan SPM (504 Pusat)", "Ujian Amali Sains (277 Pusat Makmal)"]
 
