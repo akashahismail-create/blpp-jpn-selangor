@@ -1590,36 +1590,94 @@ with col_content:
         else:
             st.info("Tiada laporan ditemui dengan filter tersebut.")
 
-    # ========== MENU 3: CETAK BORANG BLPP ==========
+    # ========== MENU 3: CETAK BORANG BLPP - FIX UNTUK PPD (KASHAH) ==========
     elif menu.startswith("🖨️"):
-        st.markdown('<div class="card"><h3>🖨️ Cetak Borang BLPP LP/Am 90 Pin. 1/2023 (Official)</h3><p style="font-size:12px;">Pilih laporan untuk cetak borang rasmi BLPP. JPN boleh pilih PPD mana, LP boleh view ikut PPD.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><h3>🖨️ Cetak Borang BLPP LP/Am 90 Pin. 1/2023 (Official) - PPD Enhanced</h3><p style="font-size:12px;">Proses: Login PPD → Pilih Daerah (PPD) → Pilih Tarikh → Pilih Sekolah/Pusat → Cetak. PPD Klang akan nampak semua laporan PPD Klang sahaja.</p></div>', unsafe_allow_html=True)
     
         if not reports:
             st.warning("Belum ada laporan untuk dicetak.")
         else:
-            # Filter ikut peranan
+            # Filter ikut peranan - PPD hanya nampak PPD dia
             available_reports = reports
             if peranan_user == "PPD":
                 available_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
+                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - Hanya laporan PPD {user['ppd']} dipaparkan")
             elif peranan_user == "KP":
                 available_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
-            if peranan_user in ["ADMIN_JPN","LP"]:
-                sel_ppd = st.selectbox("Pilih PPD untuk Cetak (JPN/LP boleh pilih)", ["Semua"] + PPD_LIST)
-                if sel_ppd != "Semua":
-                    available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
+            # LANGKAH 1: PILIH DAERAH/PPD
+            if peranan_user == "PPD":
+                # PPD - auto pilih PPD dia, tapi boleh tukar jika nak (locked default)
+                sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", [user["ppd"]] + [p for p in PPD_LIST if p != user["ppd"]], index=0, help="PPD Klang akan nampak Klang sahaja secara default")
+            else:
+                # JPN/LP boleh pilih semua
+                sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
+            
+            if sel_ppd != "Semua":
+                available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
         
             if not available_reports:
-                st.info("Tiada laporan untuk PPD tersebut.")
+                st.warning(f"Tiada laporan untuk PPD {sel_ppd} - KP belum hantar laporan lagi")
+                selected_report = None
             else:
-                report_options = {}
-                for r in available_reports:
-                    kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
-                    label = f"{r['id']} | {r['tarikh']} | {r['no_pusat']} | {r['nama_pusat']} | {r['ppd']} | {kes_label}"
-                    report_options[label] = r
-                selected_label = st.selectbox("Pilih Laporan untuk Cetak", list(report_options.keys()))
-                selected_report = report_options[selected_label]
+                # LANGKAH 2: PILIH TARIKH - hanya tarikh yang ada laporan untuk PPD tersebut
+                tarikh_list = sorted(list(set([r.get('tarikh','') for r in available_reports if r.get('tarikh')])), reverse=True)
+                if not tarikh_list:
+                    st.info("Tiada tarikh laporan ditemui")
+                    selected_report = None
+                else:
+                    # Format tarikh cantik
+                    tarikh_options = ["Semua Tarikh"] + tarikh_list
+                    sel_tarikh = st.selectbox(f"2️⃣ Pilih Tarikh Laporan ({len(tarikh_list)} tarikh ada laporan)", tarikh_options, help="Hanya tarikh yang KP telah hantar laporan untuk PPD ini")
+                    
+                    filtered_by_tarikh = available_reports
+                    if sel_tarikh != "Semua Tarikh":
+                        filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
+                    
+                    # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
+                    pusat_map = {}
+                    for r in filtered_by_tarikh:
+                        key = f"{r.get('no_pusat','')} - {r.get('nama_pusat','')}"
+                        # Simpan laporan terkini untuk setiap pusat (jika ada banyak tarikh sama, ambil latest)
+                        if key not in pusat_map:
+                            pusat_map[key] = r
+                        else:
+                            # Jika ada duplicate, ambil yang latest submit
+                            if r.get('tarikh_submit','') > pusat_map[key].get('tarikh_submit',''):
+                                pusat_map[key] = r
+                    
+                    pusat_list = sorted(list(pusat_map.keys()))
+                    
+                    if not pusat_list:
+                        st.info("Tiada pusat untuk tarikh tersebut")
+                        selected_report = None
+                    else:
+                        sel_pusat_key = st.selectbox(f"3️⃣ Pilih Pusat/Sekolah ({len(pusat_list)} pusat telah hantar laporan)", ["Semua Pusat"] + pusat_list, help="Hanya pusat yang KP telah hantar laporan untuk PPD dan tarikh ini")
+                        
+                        final_filtered = filtered_by_tarikh
+                        if sel_pusat_key != "Semua Pusat":
+                            # Filter ikut pusat
+                            no_pusat_selected = sel_pusat_key.split(" - ")[0]
+                            final_filtered = [r for r in filtered_by_tarikh if r.get('no_pusat')==no_pusat_selected]
+                        
+                        # Jika masih banyak laporan untuk pusat sama (tarikh berbeza), pilih latest atau bagi pilih
+                        if len(final_filtered) == 0:
+                            selected_report = None
+                        elif len(final_filtered) == 1:
+                            selected_report = final_filtered[0]
+                            st.success(f"✅ 1 laporan ditemui: {selected_report.get('no_pusat')} - {selected_report.get('nama_pusat')} - {selected_report.get('tarikh')}")
+                        else:
+                            # Banyak laporan untuk pusat yang sama (tarikh berbeza atau hantar banyak kali)
+                            st.info(f"📋 {len(final_filtered)} laporan ditemui untuk filter ini - pilih satu untuk cetak")
+                            report_options = {}
+                            for r in final_filtered:
+                                kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
+                                label = f"{r['tarikh']} | {r['no_pusat']} | {r['nama_pusat']} | {kes_label} | {r['id']}"
+                                report_options[label] = r
+                            selected_label = st.selectbox("4️⃣ Pilih Laporan Spesifik untuk Cetak", list(report_options.keys()))
+                            selected_report = report_options[selected_label]
             
+            if selected_report:
                 st.markdown("---")
                 st.markdown("#### 📄 Preview Borang Rasmi (100% Sama Seperti Word LP)")
                 # Jana HTML rasmi
