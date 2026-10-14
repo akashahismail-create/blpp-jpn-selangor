@@ -404,7 +404,8 @@ def jana_blpp_html(report):
         tarikh_html_obj = dth.strptime(tarikh_html_raw, "%Y-%m-%d")
         tarikh_html = tarikh_html_obj.strftime("%d/%m/%Y")
     except:
-        tarikh_html = tarikh_html_raw if tarikh_html_raw else "___/___/______"
+        pelapor_html = report.get('pelapor','') or report.get('nama_kp','') or "-"
+    tarikh_html = tarikh_html_raw if tarikh_html_raw else "___/___/______"
     
     
     html = f"""
@@ -464,9 +465,20 @@ def jana_blpp_html(report):
             </tr>
             {kes_rows}
         </table>
-                <div class="footer">
-            <div>Pelapor:<br><div style="height:60px; margin:5px 0;">{sig_img_html}</div>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: {tarikh_html}</div>
-            <div>Pengesahan:<br><br><br>___________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: {tarikh_html}</div>
+                <div class="footer" style="display:flex; justify-content:space-between;">
+            <div style="width:45%;">Pelapor:<br><div style="height:50px; margin:5px 0;">{sig_img_html}</div>
+                <div style="border-top:1px solid black; margin-top:5px; padding-top:5px;">
+                    <div style="font-weight:800; font-size:14px; text-transform:uppercase;">{pelapor_html}</div>
+                    <div style="font-size:10px; margin-top:4px;">Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor</div>
+                    <div style="font-size:11px; margin-top:8px;">Tarikh: {tarikh_html}</div>
+                </div>
+            </div>
+            <div style="width:45%;">Pengesahan:<br><br><br>
+                <div style="border-top:1px solid black; margin-top:50px; padding-top:5px;">
+                    <div style="font-size:10px;">Tandatangan Penyelia Kawasan/Pegawai Peperiksaan</div>
+                    <div style="font-size:11px; margin-top:8px;">Tarikh: {tarikh_html}</div>
+                </div>
+            </div>
         </div>
     </div></body></html>
     """
@@ -881,48 +893,56 @@ def jana_blpp_pdf(report):
             yf = 18
         else:
             yf = curr_bottom + 8
-        pdf.set_font("Helvetica", "", 8.5)
+        # ===== FOOTER BARU - NAMA KETUA PENGAWAS TURUN & BESAR - FIX KASHAH =====
+        pelapor_name = report.get('pelapor','') or report.get('nama_kp','') or "-"
+        
+        pdf.set_font("Helvetica", "B", 9)
         pdf.set_xy(10, yf)
         pdf.cell(60, 5, "Pelapor:")
         pdf.set_xy(150, yf)
         pdf.cell(60, 5, "Pengesahan:")
         
-        # ===== LETAK TANDATANGAN CLEAR BG - BELAKANG TEXT, TIDAK TUTUP TEXT =====
+        # Signature clear background - letak di atas garisan, tidak tutup text
         sig_b64 = report.get('tandatangan_b64','')
         if sig_b64:
             try:
                 import base64
-                from io import BytesIO
                 img_bytes = base64.b64decode(sig_b64)
                 import os, tempfile
                 tmp_path = os.path.join(tempfile.gettempdir(), f"sig_{report.get('id','tmp')}.png")
                 with open(tmp_path, 'wb') as f:
                     f.write(img_bytes)
-                # Letak di ATAS label, belakang text - x=12, y=yf-6, w=40 h=12
-                # Jadi tidak tutup tulisan "Tandatangan Ketua Pengawas..."
-                # Text label ada di yf+10, jadi signature di yf-2 ke yf+8 - di atas label
-                pdf.image(tmp_path, x=14, y=yf-2, w=40, h=12)
+                # Letak signature di ruang kosong antara Pelapor: dan garisan
+                pdf.image(tmp_path, x=14, y=yf+5, w=38, h=11)
                 try:
                     os.remove(tmp_path)
                 except:
                     pass
             except Exception as e:
-                pdf.set_font("Helvetica", "I", 6)
-                pdf.set_xy(10, yf-2)
-                pdf.cell(50, 4, f"[TT: {report.get('pelapor','')}]")
+                pass
         
+        # Garisan tandatangan
+        pdf.line(10, yf+18, 95, yf+18)
+        pdf.line(150, yf+18, 235, yf+18)
+        
+        # NAMA KETUA PENGAWAS - BESAR & TURUN BAWAH GARISAN (tidak tutup text belakang)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_xy(10, yf+20)
+        pdf.cell(85, 6, pelapor_name.upper(), align="L")
+        
+        # Label jawatan - kecil di bawah nama, tidak bertindih
         pdf.set_font("Helvetica", "", 7)
-        pdf.set_xy(10, yf+10)
-        pdf.cell(80, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
-        pdf.set_xy(10, yf+14)
-        pdf.cell(80, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
-        pdf.set_xy(150, yf+10)
-        pdf.cell(80, 4, "Tandatangan Penyelia Kawasan/Pegawai Peperiksaan")
+        pdf.set_xy(10, yf+26)
+        pdf.cell(85, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
+        pdf.set_xy(10, yf+30)
+        pdf.cell(85, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
         
-        pdf.line(10, yf+20, 95, yf+20)
-        pdf.line(150, yf+20, 235, yf+20)
+        pdf.set_xy(150, yf+26)
+        pdf.cell(85, 4, "Tandatangan Penyelia Kawasan/")
+        pdf.set_xy(150, yf+30)
+        pdf.cell(85, 4, "Pegawai Peperiksaan")
         
-        # Tarikh terus letak tarikh laporan yang diisi di atas (fix Kashah)
+        # Tarikh auto
         tarikh_laporan = report.get('tarikh','')
         try:
             from datetime import datetime as dt
@@ -931,10 +951,10 @@ def jana_blpp_pdf(report):
         except:
             tarikh_pdf_formatted = tarikh_laporan if tarikh_laporan else "___/___/______"
         
-        pdf.set_font("Helvetica", "", 7.5)
-        pdf.set_xy(10, yf+22)
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_xy(10, yf+36)
         pdf.cell(80, 5, f"Tarikh: {tarikh_pdf_formatted}")
-        pdf.set_xy(150, yf+22)
+        pdf.set_xy(150, yf+36)
         pdf.cell(80, 5, f"Tarikh: {tarikh_pdf_formatted}")
 
         out = pdf.output(dest='S')
