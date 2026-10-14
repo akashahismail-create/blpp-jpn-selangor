@@ -762,11 +762,17 @@ div[data-testid="stSidebarNav"] {display: none !important;}
 col_menu, col_content = st.columns([1.1, 4], gap="medium")
 
 with col_menu:
+    # FIX SYNC: Kalau KP dah pilih pusat, papar pusat sebenar yang dipilih, bukan default Klang
+    current_ppd_display = st.session_state.get('current_ppd', user.get('ppd','-'))
+    current_sekolah_display = st.session_state.get('current_sekolah', user.get('nama','-'))
+    # Potong nama panjang untuk elak terkeluar kotak, tapi tooltip full
+    display_nama_pendek = current_sekolah_display[:45] + ("..." if len(current_sekolah_display) > 45 else "")
+    
     st.markdown(f'''
     <div class="card" style="position:sticky; top:18px; padding:16px;">
-        <div style="font-weight:800; font-size:14px;">{user['nama']}</div>
-        <div style="font-size:11px; color:#64748B; margin:4px 0;">{peranan_user}</div>
-        <div style="font-size:11px; background:#EEF2FF; padding:4px 8px; border-radius:6px; display:inline-block;">PPD: {user.get('ppd','-')}</div>
+        <div style="font-weight:800; font-size:13px; line-height:1.3;" title="{current_sekolah_display}">{user['id']} - {display_nama_pendek}</div>
+        <div style="font-size:11px; color:#64748B; margin:4px 0;">{peranan_user} | {current_sekolah_display}</div>
+        <div style="font-size:11px; background:#EEF2FF; padding:4px 8px; border-radius:6px; display:inline-block;">PPD: {current_ppd_display}</div>
         <hr style="margin:12px 0;">
     ''', unsafe_allow_html=True)
     
@@ -889,6 +895,11 @@ with col_content:
             auto_no_pusat = final_no_pusat
             selected_sekolah = final_nama_sekolah
             auto_kod_ppd = final_kod_ppd
+            
+            # SYNC ke column kiri - simpan pilihan sebenar
+            st.session_state['current_ppd'] = selected_ppd
+            st.session_state['current_sekolah'] = selected_sekolah
+            st.session_state['current_no_pusat'] = auto_no_pusat
             
 
         
