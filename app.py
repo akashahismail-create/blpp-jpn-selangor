@@ -1703,6 +1703,9 @@ with col_content:
                             no_pusat_selected = sel_pusat_key.split(" - ")[0]
                             final_filtered = [r for r in filtered_by_tarikh if r.get('no_pusat')==no_pusat_selected]
                         
+                        # Sort ikut masa hantar - latest dulu untuk PPD mudah pilih
+                        final_filtered = sorted(final_filtered, key=lambda x: x.get('tarikh_submit',''), reverse=True)
+                        
                         # Jika masih banyak laporan untuk pusat sama (tarikh berbeza), pilih latest atau bagi pilih
                         if len(final_filtered) == 0:
                             selected_report = None
@@ -1715,7 +1718,23 @@ with col_content:
                             report_options = {}
                             for r in final_filtered:
                                 kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
-                                label = f"{r['tarikh']} | {r['no_pusat']} | {r['nama_pusat']} | {kes_label} | {r['id']}"
+                                # FIX: Tunjuk masa KP isi/hantar untuk PPD boleh pilih ikut masa
+                                submit_time = r.get('tarikh_submit','') or r.get('tarikh','')
+                                # Format masa cantik
+                                try:
+                                    from datetime import datetime as dt_parse
+                                    if ' ' in submit_time:
+                                        dt_obj = dt_parse.strptime(submit_time, "%Y-%m-%d %H:%M:%S")
+                                        masa_cantik = dt_obj.strftime("%d/%m/%Y %H:%M:%S")
+                                        masa_short = dt_obj.strftime("%H:%M:%S")
+                                    else:
+                                        masa_cantik = submit_time
+                                        masa_short = ""
+                                except:
+                                    masa_cantik = submit_time
+                                    masa_short = ""
+                                
+                                label = f"{r['tarikh']} | {masa_short} | {r['no_pusat']} | {r['nama_pusat']} | {kes_label} | Hantar: {masa_cantik}"
                                 report_options[label] = r
                             selected_label = st.selectbox("4️⃣ Pilih Laporan Spesifik untuk Cetak", list(report_options.keys()))
                             selected_report = report_options[selected_label]
