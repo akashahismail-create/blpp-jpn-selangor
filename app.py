@@ -1230,6 +1230,8 @@ with col_content:
                     kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
                 with colC:
                     tarikh = st.date_input("Tarikh Laporan", value=date.today())
+                    # FIX KASHAH: Tambah Sidang - 3 sidang
+                    sidang = st.selectbox("Sidang", ["Sidang 1 (Pagi)", "Sidang 2 (Petang)", "Sidang 3 (Malam / Khas)"], help="Pilih sidang peperiksaan - 3 sidang sehari")
                     nama_kp = st.text_input("Nama KP", value="")
                     # Simpan exam_mode untuk backend
                     st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
@@ -1401,6 +1403,7 @@ with col_content:
                             "nama_kp": nama_kp,
                             "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
                             "tarikh": tarikh.strftime("%Y-%m-%d"),
+                            "sidang": sidang,
                             "tarikh_submit": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "kes_data": [] if tiada_kes else kes_data,
                             "tiada_kes": tiada_kes,
@@ -1703,6 +1706,16 @@ with col_content:
                             no_pusat_selected = sel_pusat_key.split(" - ")[0]
                             final_filtered = [r for r in filtered_by_tarikh if r.get('no_pusat')==no_pusat_selected]
                         
+                        # LANGKAH 3B: PILIH SIDANG - FIX KASHAH 3 SIDANG
+                        sidang_list = sorted(list(set([r.get('sidang','') for r in final_filtered if r.get('sidang')])))
+                        if sidang_list:
+                            sel_sidang = st.selectbox(f"3️⃣b Pilih Sidang ({len(sidang_list)} sidang ada laporan)", ["Semua Sidang"] + sidang_list, help="Pilih sidang - KP isi sidang berapa")
+                            if sel_sidang != "Semua Sidang":
+                                final_filtered = [r for r in final_filtered if r.get('sidang')==sel_sidang]
+                        else:
+                            # Fallback jika laporan lama tak ada sidang
+                            st.caption("ℹ️ Laporan lama tiada info sidang - semua sidang dipaparkan")
+                        
                         # Sort ikut masa hantar - latest dulu untuk PPD mudah pilih
                         final_filtered = sorted(final_filtered, key=lambda x: x.get('tarikh_submit',''), reverse=True)
                         
@@ -1718,6 +1731,7 @@ with col_content:
                             report_options = {}
                             for r in final_filtered:
                                 kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
+                                sidang_label = r.get('sidang','') or 'Tiada Sidang'
                                 # FIX: Tunjuk masa KP isi/hantar untuk PPD boleh pilih ikut masa
                                 submit_time = r.get('tarikh_submit','') or r.get('tarikh','')
                                 # Format masa cantik
@@ -1734,7 +1748,7 @@ with col_content:
                                     masa_cantik = submit_time
                                     masa_short = ""
                                 
-                                label = f"{r['tarikh']} | {masa_short} | {r['no_pusat']} | {r['nama_pusat']} | {kes_label} | Hantar: {masa_cantik}"
+                                label = f"{r['tarikh']} | {sidang_label} | {masa_short} | {r['no_pusat']} | {r['nama_pusat']} | {kes_label} | Hantar: {masa_cantik}"
                                 report_options[label] = r
                             selected_label = st.selectbox("4️⃣ Pilih Laporan Spesifik untuk Cetak", list(report_options.keys()))
                             selected_report = report_options[selected_label]
