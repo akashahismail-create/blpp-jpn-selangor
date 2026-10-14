@@ -373,7 +373,7 @@ def jana_blpp_html(report):
     tahun = report.get('tahun','')
     kes_data = report.get('kes_data', [])
     tiada_kes = report.get('tiada_kes', False)
-    pelapor_html = report.get('pelapor','') or report.get('nama_kp','') or report.get('nama','') or "-"
+    pelapor_html = report.get('pelapor','') or ""  # Kosong jika KP tak isi
     
     sig_b64_html = report.get('tandatangan_b64','')
     if sig_b64_html:
@@ -891,7 +891,7 @@ def jana_blpp_pdf(report):
         else:
             yf = curr_bottom + 8
         # ===== FOOTER BARU - NAMA KETUA PENGAWAS TURUN & BESAR - FIX KASHAH =====
-        pelapor_name = report.get('pelapor','') or report.get('nama_kp','') or "-"
+        pelapor_name = report.get('pelapor','') or ""  # Kosong jika KP tak isi - jangan guna nama sekolah
         
         pdf.set_font("Helvetica", "B", 9)
         pdf.set_xy(10, yf)
@@ -925,7 +925,7 @@ def jana_blpp_pdf(report):
         # NAMA KETUA PENGAWAS - BESAR & TURUN BAWAH GARISAN (tidak tutup text belakang)
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_xy(10, yf+20)
-        pdf.cell(85, 6, pelapor_name.upper(), align="L")
+        pdf.cell(85, 6, pelapor_name.upper() if pelapor_name else "", align="L")
         
         # Label jawatan - kecil di bawah nama, tidak bertindih
         pdf.set_font("Helvetica", "", 7)
@@ -1201,7 +1201,7 @@ with col_content:
                     kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
                 with colC:
                     tarikh = st.date_input("Tarikh Laporan", value=date.today())
-                    nama_kp = st.text_input("Nama KP", value=user["nama"])
+                    nama_kp = st.text_input("Nama KP", value="")
                     # Simpan exam_mode untuk backend
                     st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
 
@@ -1302,7 +1302,7 @@ with col_content:
                         st.info("Belum ada tandatangan. Sila upload atau guna kamera.")
                         # Lukis manual guna canvas simple - guna text input sebagai alternatif
                         st.markdown("Atau taip nama sebagai tandatangan digital:")
-                        tt_text = st.text_input("Tandatangan Text", value=user["nama"], key="tt_text")
+                        tt_text = st.text_input("Tandatangan Text", value="", key="tt_text")
                         if tt_text:
                             # Generate signature image - HITAM BOLD BESAR, bukan biru kecil
                             from PIL import ImageDraw, ImageFont
@@ -1345,17 +1345,23 @@ with col_content:
                         except:
                             tt_text_val = tt_text if 'tt_text' in locals() else ''
                         
-                        # Jika ada tandatangan text yang diisi, dan pelapor_nama masih nama sekolah, guna tt_text
-                        if tt_text_val and tt_text_val.strip() != "" and tt_text_val != user.get("nama",""):
-                            # Jika pelapor_nama masih sama dengan nama sekolah atau kosong, override dengan tt_text
-                            if pelapor_nama == user.get("nama","") or pelapor_nama.strip() == "" or "SEKOLAH" in pelapor_nama.upper():
+                        # Jika KP isi Tandatangan Text, guna itu sebagai nama pelapor
+                        try:
+                            tt_text_val = tt_text_val or tt_text or ""
+                        except:
+                            tt_text_val = ""
+                        
+                        if tt_text_val and tt_text_val.strip() != "":
+                            # Jika ada tandatangan text, guna itu
+                            if pelapor_nama.strip() == "" or "SEKOLAH" in pelapor_nama.upper():
                                 pelapor_nama = tt_text_val.strip().upper()
                         
-                        # Pastikan pelapor_nama tidak mengandungi KP KP001 - SEKOLAH...
-                        if "SEKOLAH" in pelapor_nama.upper() and "KP" in pelapor_nama.upper():
-                            # Jika masih ada format sekolah, cuba guna tt_text jika ada
+                        # BUANG NAMA SEKOLAH - jika pelapor_nama masih ada SEKOLAH, kosongkan
+                        if "SEKOLAH" in pelapor_nama.upper():
                             if tt_text_val and tt_text_val.strip() != "":
                                 pelapor_nama = tt_text_val.strip().upper()
+                            else:
+                                pelapor_nama = ""  # Kosongkan saja jika KP tak isi apa-apa
                         
                         new_report = {
                             "id": f"BLPP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{no_pusat}",
