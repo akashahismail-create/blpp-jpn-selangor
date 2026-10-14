@@ -1050,7 +1050,7 @@ with col_content:
                     tarikh_obj = datetime.now()
             
                 st.markdown("---")
-                st.markdown("### 📄 Borang BLPP Lengkap - TELAH DIISI DATA (Bukan Kosong!)")
+                st.markdown("### 📄 Borang BLPP Lengkap")
                 st.success("✅ Borang di bawah telah siap diisi dengan data KP - ini yang akan dihantar ke PPD!")
             
                 html_filled = jana_blpp_html(new_report)
