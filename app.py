@@ -386,16 +386,61 @@ def save_users(users):
     with open(USERS_FILE, "w") as f:
         json.dump(users, f, indent=2)
 
-def load_reports():
+# OPTIMIZE + AUTO MIGRATION - FIX Petaling Utama bug - TAK LARI dari app_15.py asal
+@st.cache_data(ttl=60, show_spinner=False)
+def load_reports_cached(file_mtime):
     if os.path.exists(REPORTS_FILE):
-        with open(REPORTS_FILE, "r") as f:
-            return json.load(f)
+        try:
+            with open(REPORTS_FILE, "r") as f:
+                reports = json.load(f)
+                # Auto-fix PPD field untuk laporan lama yang bug (BK -> Petaling Utama)
+                fixed = False
+                for r in reports:
+                    no_pusat = str(r.get("no_pusat","")).upper().strip()
+                    ppd_lama = str(r.get("ppd","")).strip()
+                    kod = no_pusat[:2] if len(no_pusat)>=2 else ""
+                    ppd_betul = KOD_PPD_MAPPING.get(kod, "")
+                    # Jika ppd kosong atau bukan dalam senarai, derive dari no_pusat
+                    if not ppd_lama or ppd_lama not in PPD_LIST:
+                        if ppd_betul:
+                            r["ppd"] = ppd_betul
+                            r["kod_ppd"] = kod
+                            fixed = True
+                    elif ppd_lama in KOD_PPD_MAPPING:
+                        r["ppd"] = KOD_PPD_MAPPING[ppd_lama]
+                        r["kod_ppd"] = ppd_lama
+                        fixed = True
+                    elif kod == "BK" and ppd_lama != "Petaling Utama":
+                        r["ppd"] = "Petaling Utama"
+                        r["kod_ppd"] = "BK"
+                        fixed = True
+                    if not r.get("kod_ppd") and kod in KOD_PPD_MAPPING:
+                        r["kod_ppd"] = kod
+                        fixed = True
+                if fixed:
+                    with open(REPORTS_FILE, "w") as fw:
+                        json.dump(reports, fw, indent=2)
+                return reports
+        except:
+            return []
     return []
+
+def load_reports():
+    try:
+        mtime = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
+    except:
+        mtime = 0
+    return load_reports_cached(mtime)
 
 def save_reports(reports):
     with open(REPORTS_FILE, "w") as f:
         json.dump(reports, f, indent=2)
-    # Clear cache supaya data baru terus nampak
+    try:
+        load_reports_cached.clear()
+    except:
+        pass
+
+def clear_reports_cache():
     try:
         load_reports_cached.clear()
     except:
@@ -1813,7 +1858,21 @@ with col_content:
             filtered = [r for r in filtered if r.get("id_kp")==user["id"]]
     
         if filter_ppd != "Semua":
-            filtered = [r for r in filtered if r.get("ppd")==filter_ppd]
+            # FIX ROBUST untuk JPN - Petaling Utama include BK
+            def match_filter_ppd(r):
+                r_ppd = str(r.get("ppd","")).strip()
+                r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                if r_ppd == filter_ppd:
+                    return True
+                kod_filter = PPD_TO_KOD.get(filter_ppd, "")
+                if kod_filter and r_kod == kod_filter:
+                    return True
+                if filter_ppd == "Petaling Utama" and (r_ppd in ["BK", "Petaling Utama"] or str(r.get("no_pusat","")).upper().startswith("BK")):
+                    return True
+                if filter_ppd == "Petaling Perdana" and (r_ppd in ["BH", "Petaling Perdana"] or str(r.get("no_pusat","")).upper().startswith("BH")):
+                    return True
+                return False
+            filtered = [r for r in filtered if match_filter_ppd(r)]
         if filter_tarikh:
             filtered = [r for r in filtered if r.get("tarikh")==filter_tarikh.strftime("%Y-%m-%d")]
         if filter_pep != "Semua":
@@ -1868,30 +1927,22 @@ with col_content:
         
             # LANGKAH 1: PILIH DAERAH/PPD - BUANG UNTUK PPD (KASHAH REQUEST)
             if peranan_user == "PPD":
-                # PPD dah login ikut PPD dia - tak perlu pilih daerah lagi - FIX robust matching
                 sel_ppd = user["ppd"]
                 kod_ppd_user = user.get("kod_ppd","")
                 st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD Anda: {sel_ppd} ({kod_ppd_user})</b> - Auto papar laporan PPD {sel_ppd} sahaja</div>", unsafe_allow_html=True)
-                # FIX: Filter robust - match ppd name ATAU kod_ppd (untuk cover bug lama Petaling Utama)
-                def match_ppd(r):
+                def match_ppd_dash(r):
                     r_ppd = str(r.get("ppd","")).strip()
                     r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                    user_ppd = str(sel_ppd).strip()
-                    user_kod = str(kod_ppd_user).strip().upper()
-                    # Match by nama PPD
-                    if r_ppd == user_ppd:
+                    if r_ppd == sel_ppd:
                         return True
-                    # Match by kod PPD (BK = Petaling Utama)
-                    if user_kod and r_kod == user_kod:
+                    if kod_ppd_user and r_kod == kod_ppd_user.upper():
                         return True
-                    # Match Petaling Utama case - check if no_pusat starts with BK
-                    if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                    if sel_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
                         return True
-                    if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
+                    if sel_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
                         return True
                     return False
-                
-                available_reports = [r for r in reports if match_ppd(r)]
+                available_reports = [r for r in reports if match_ppd_dash(r)]
                 st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
                 if len(available_reports)==0 and len(reports)>0:
                     st.warning(f"⚠️ Tiada laporan untuk {sel_ppd}. Debug: Total {len(reports)} laporan, PPD dalam sistem: {list(set([r.get('ppd','') for r in reports]))[:5]}")
@@ -1899,7 +1950,26 @@ with col_content:
                 # JPN/LP/Admin masih perlu pilih PPD
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
                 if sel_ppd != "Semua":
-                    available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
+                    # FIX ROBUST - Match Petaling Utama juga via kod BK & no_pusat
+                    def match_jpn_ppd(r):
+                        r_ppd = str(r.get("ppd","")).strip()
+                        r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                        sel = sel_ppd.strip()
+                        if r_ppd == sel:
+                            return True
+                        # Map kod to PPD
+                        kod_sel = PPD_TO_KOD.get(sel, "")
+                        if kod_sel and r_kod == kod_sel:
+                            return True
+                        if sel == "Petaling Utama" and (r_ppd in ["BK", "Petaling Utama"] or str(r.get("no_pusat","")).upper().startswith("BK")):
+                            return True
+                        if sel == "Petaling Perdana" and (r_ppd in ["BH", "Petaling Perdana"] or str(r.get("no_pusat","")).upper().startswith("BH")):
+                            return True
+                        # Generic: check if kod matches selected PPD
+                        if PPD_TO_KOD.get(sel) == r_kod:
+                            return True
+                        return False
+                    available_reports = [r for r in available_reports if match_jpn_ppd(r)]
         
             if not available_reports:
                 st.warning(f"Tiada laporan untuk PPD {sel_ppd} - KP belum hantar laporan lagi")
@@ -2220,7 +2290,20 @@ with col_content:
                 st.markdown("#### Laporan Ikut PPD (10 PPD)")
                 ppd_stats = []
                 for ppd in PPD_LIST:
-                    count = len([r for r in reports if r.get("ppd")==ppd])
+                    kod = PPD_TO_KOD.get(ppd, "")
+                    def match_count(r):
+                        r_ppd = str(r.get("ppd","")).strip()
+                        r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                        if r_ppd == ppd:
+                            return True
+                        if kod and r_kod == kod:
+                            return True
+                        if ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                            return True
+                        if ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
+                            return True
+                        return False
+                    count = len([r for r in reports if match_count(r)])
                     ppd_stats.append({"PPD": ppd, "Laporan": count, "KP": len([u for u in load_users() if u.get("ppd")==ppd and u["peranan"]=="KP"])})
                 st.dataframe(pd.DataFrame(ppd_stats), use_container_width=True)
             
