@@ -332,7 +332,7 @@ def load_users():
                 "id": uid,
                 "nama": f"KP {uid} - {nama_pusat[:30]}",
                 "peranan": "KP",
-                "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
+                "ppd": ppd,
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
                 "password": uid.lower(),
