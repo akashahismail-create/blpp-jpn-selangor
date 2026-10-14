@@ -971,7 +971,7 @@ if not st.session_state.login:
     except:
         pass
     
-    st.markdown('<div class="header-biru"><h1>📋 SISTEM PENGURUSAN PUSAT PEPERIKSAAN</h1><h2>BLPP - LP/Am 90 Pin. 1/2023</h2><h3>JPN SELANGOR - 504 PUSAT</h3></div>', unsafe_allow_html=True)
+st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Created by Akash | Peranan: {peranan_user}</div></div>""", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,1.2,1])
     with col2:
@@ -1007,7 +1007,7 @@ if not st.session_state.login:
 user = st.session_state.user
 peranan_user = user["peranan"]
 
-st.markdown(f"""<div class="header-biru" style="text-align:center; padding:18px 10px;"><h1 style="font-size:20px; font-weight:800; margin:0;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:13px; font-weight:500; margin:6px 0 0 0; opacity:0.9;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:10px; margin-top:8px; opacity:0.7;">Created by Akash | Peranan: {peranan_user} | PPD: {user.get('ppd','-')} | No Pusat: {user.get('no_pusat','-')}</div></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Created by Akash | Peranan: {peranan_user}</div></div>""", unsafe_allow_html=True)
 
 # ========== LAYOUT TANPA SIDEBAR - MENU KEKAL DI KIRI DALAM MAIN PAGE ==========
 # Sembunyikan sidebar asal Streamlit sepenuhnya
