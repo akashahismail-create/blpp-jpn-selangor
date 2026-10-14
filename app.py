@@ -463,11 +463,14 @@ def jana_blpp_html(report):
     tiada_kes = report.get('tiada_kes', False)
     pelapor_html = report.get('pelapor','') or ""  # Kosong jika KP tak isi
     
-    # FIX LOGO + FIX 1 MUKA + FIX JARAK
+    # FIX LOGO - embed base64 supaya ada logo dalam HTML download
     logo_b64 = ""
     try:
         import base64, os
-        logo_paths = ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/mnt/data/logo_lp.png"]
+        from PIL import Image
+        import io
+        logo_paths = ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/mnt/data/logo_lp.png", "LEMBAGA PEPERIKSAAN.png"]
+        # Also try to find any logo file
         for lp in logo_paths:
             if os.path.exists(lp):
                 try:
@@ -476,13 +479,16 @@ def jana_blpp_html(report):
                         break
                 except:
                     pass
+        # If still not found, try create simple placeholder logo from existing pdf logo
         if not logo_b64 and os.path.exists("/tmp/logo_final.png"):
             try:
                 with open("/tmp/logo_final.png", "rb") as f:
                     logo_b64 = base64.b64encode(f.read()).decode()
             except:
                 pass
+        # Fallback: use small transparent pixel if no logo (will be hidden via onerror)
         if not logo_b64:
+            # 1x1 transparent
             logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
     except:
         logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
@@ -508,10 +514,9 @@ def jana_blpp_html(report):
         pep_line = "PEPERIKSAAN ........................................ TAHUN ........................................"
     
     if tiada_kes or not kes_data:
-        # FIX KASHAH: TIADA KES 1 muka je + tulis TIADA KES, bukan 5 baris kosong
-        kes_rows = "<tr><td style='height:32px; text-align:center;'>1</td><td colspan='4' style='text-align:center; font-weight:bold; font-size:11pt; height:32px;'>TIADA KES LUAR DUGAAN - TIADA KES PADA HARI INI</td></tr>"
-        for _ in range(1):
-            kes_rows += "<tr><td style='height:20px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
+        kes_rows = ""
+        for _ in range(5):
+            kes_rows += "<tr><td style='height:auto; min-height:20px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
@@ -554,7 +559,7 @@ def jana_blpp_html(report):
             <li>Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.</li>
             <li>Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan).</li>
         </ol></div>
-        <table style="margin-top:6px;">
+        <table style="margin-top:10px;">
             <tr>
                 <th style="width:20%;">NO. PUSAT</th>
                 <th style="width:38%;">NAMA PUSAT PEPERIKSAAN</th>
@@ -568,7 +573,7 @@ def jana_blpp_html(report):
                 <td style="font-weight:bold; word-wrap:break-word;">{nama_kp}</td>
             </tr>
         </table>
-        <table style="margin-top:2px;">  <!-- FIX KASHAH: Tiada jarak -->
+        <table style="margin-top:14px;">
             <tr>
                 <th style="width:6%;">BIL.</th>
                 <th style="width:16%;">ANGKA GILIRAN</th>
@@ -597,32 +602,48 @@ def jana_blpp_html(report):
     """
     return html
 
-# ========== FUNGSI DOWNLOAD PUKAL PDF ADA LOGO (FIX) ==========
+# ========== FUNGSI DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) - FIX NAMEERROR ==========
 def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
+    """Create ZIP containing PDFs with LOGO for all reports on selected date"""
     import zipfile
     from io import BytesIO
+    
     filtered = [r for r in reports if r.get('tarikh') == tarikh_selected]
     if not filtered:
         return None, 0
+    
     zip_buffer = BytesIO()
+    
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for r in filtered:
             no_pusat = r.get('no_pusat','UNKNOWN')
-            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
-            base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}"
+            nama_pusat = r.get('nama_pusat','')[:20]
+            ppd = r.get('ppd','')
+            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in nama_pusat)
+            base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}_{ppd}"
+            
             try:
                 pdf_data = jana_blpp_pdf(r)
                 if isinstance(pdf_data, BytesIO):
                     pdf_bytes = pdf_data.getvalue()
-                else:
+                elif isinstance(pdf_data, (bytes, bytearray)):
                     pdf_bytes = pdf_data
+                else:
+                    # Fallback: if jana_blpp_pdf returns something else, try get bytes
+                    pdf_bytes = bytes(pdf_data) if pdf_data else None
+                    if not pdf_bytes:
+                        raise ValueError("PDF empty")
+                
                 zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
+                
             except Exception as e:
                 try:
                     html_content = jana_blpp_html(r)
                     zip_file.writestr(f"{base_filename}.html", html_content)
-                except:
-                    pass
+                except Exception as e2:
+                    zip_file.writestr(f"{base_filename}_ERROR.txt", f"Gagal: {str(e)} / {str(e2)}")
+        
+        # Add summary CSV
         try:
             import pandas as pd
             df_summary = pd.DataFrame([{
@@ -633,12 +654,14 @@ def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
                 'Peperiksaan': r.get('peperiksaan',''),
                 'Nama KP': r.get('nama_kp',''),
                 'Status': 'TIADA KES' if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES",
+                'ID': r.get('id','')
             } for r in filtered])
             csv_buffer = BytesIO()
             df_summary.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
             zip_file.writestr(f"RINGKASAN_{tarikh_selected}.csv", csv_buffer.getvalue())
-        except:
+        except Exception:
             pass
+    
     zip_buffer.seek(0)
     return zip_buffer.getvalue(), len(filtered)
 
@@ -762,7 +785,7 @@ def jana_blpp_pdf(report):
         # ===== TABLE 2 - FIX GARISAN MERAH SAMA ATAS BAWAH =====
         # Pastikan outer width sama 277mm macam table atas: 10 ke 287
         # Dan semua vertical line guna x yang exact, tak ada rounding error
-        y2 = y1 + h_header + h_data + 1  # FIX KASHAH: Tiada jarak antara table 1 & 2
+        y2 = y1 + h_header + h_data + 6
         # Guna width yang buat vertical line bawah lurus sama dari header sampai bawah
         wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86  # total 277
         h2_header = 10
@@ -843,17 +866,17 @@ def jana_blpp_pdf(report):
             return max(8, len(lines) * line_h + 4)
         
         if tiada or not kes_data:
-            # FIX KASHAH: TIADA KES 1 muka - 28mm je, bukan 62mm, elak jadi 2 muka
-            big_h = 28
+            big_h = 62
             pdf.set_xy(x0, y_body)
-            pdf.cell(wb1, big_h, "1", border=1, align="C")
+            pdf.cell(wb1, big_h, "", border=1)
             pdf.set_xy(x1, y_body)
             pdf.cell(wb2, big_h, "", border=1)
             pdf.set_xy(x2, y_body)
             pdf.cell(wb3, big_h, "", border=1)
-            pdf.set_font("Helvetica", "B", 11)
             pdf.set_xy(x3_b, y_body)
-            pdf.cell(wb4+wb5, big_h, "TIADA KES LUAR DUGAAN - TIADA KES PADA HARI INI", border=1, align="C")
+            pdf.cell(wb4, big_h, "", border=1)
+            pdf.set_xy(x4, y_body)
+            pdf.cell(wb5, big_h, "", border=1)
             total_table_h = big_h
         else:
             # ADA KES - Lukis kotak flexible ikut panjang tulisan
@@ -1036,18 +1059,12 @@ def jana_blpp_pdf(report):
             # total_table_h sudah dikira dari row_heights, kekalkan
 
         # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
-        # FIX KASHAH: Untuk TIADA KES jangan guna 62, guna total_table_h (28mm) supaya 1 muka
-        page_limit = 185
+        # Jika row_y dah dekat bawah page, pindah footer ke page baru
+        page_limit = 185  # A4 landscape usable height ~ 190mm
         try:
             curr_bottom = row_y
         except:
-            try:
-                curr_bottom = y_body + total_table_h
-            except:
-                try:
-                    curr_bottom = y_body + big_h
-                except:
-                    curr_bottom = y_body + 28
+            curr_bottom = y_body + 62
         
         if curr_bottom + 35 > page_limit:
             pdf.add_page()
@@ -1386,11 +1403,11 @@ with col_menu:
     # Menu ikut peranan - JPN ada Padam Laporan
     # FIX KASHAH: LP sama macam JPN cuma tiada Delete & Pengurusan Pengguna
     if peranan_user == "ADMIN_JPN":
-        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📦 Download Pukal ZIP", "🗑️ Padam Laporan", "👥 Pengurusan Pengguna (JPN)", "🚪 Log Keluar"]
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "🗑️ Padam Laporan", "👥 Pengurusan Pengguna (JPN)", "🚪 Log Keluar"]
     elif peranan_user == "PPD":
-        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📦 Download Pukal ZIP", "📈 Statistik PPD", "🚪 Log Keluar"]
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📈 Statistik PPD", "🚪 Log Keluar"]
     elif peranan_user == "LP":
-        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📦 Download Pukal ZIP", "🚪 Log Keluar"]
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "🚪 Log Keluar"]
     else:
         menu_items = ["📝 Isi Borang BLPP (KP)", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
     menu = st.radio("Menu", menu_items, label_visibility="collapsed")
@@ -1562,12 +1579,12 @@ with col_content:
                 st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
         
             # Form untuk kes sahaja (bukan peperiksaan info)
-            with st.form("blpp_form", clear_on_submit=False):
+            with st.form("blpp_form", clear_on_submit=True):  # FIX KASHAH: Clear selepas hantar supaya boleh isi lain
 
             
                 st.markdown("---")
                 st.markdown("#### 📋 Butiran Kes Luar Dugaan")
-                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=False)
+                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=False, key="checkbox_tiada_kes")  # FIX: ada key supaya boleh reset
             
                 kes_data = []
                 if not tiada_kes:
@@ -1752,7 +1769,19 @@ with col_content:
                         # Simpan ke session_state untuk paparan di luar form
                         st.session_state['last_report'] = new_report
                         st.session_state['last_submitted'] = True
+                        # FIX KASHAH: Reset form supaya boleh isi semula untuk pusat lain - clear tiada_kes checkbox & butiran kes
+                        # Clear semua keys berkaitan kes agar bila isi semula, butiran kes keluar
+                        keys_to_clear = [k for k in st.session_state.keys() if k.startswith(('ag_', 'ic_', 'kes_', 'tind_'))]
+                        for k in keys_to_clear:
+                            try:
+                                del st.session_state[k]
+                            except:
+                                pass
+                        # Reset tiada_kes dalam session jika ada
+                        if 'tiada_kes' in st.session_state:
+                            st.session_state['tiada_kes'] = False
                         st.success(f"✅ Laporan BLPP berjaya dihantar! ID: {new_report['id']}")
+                        st.info("✅ Borang telah direset - boleh isi untuk pusat/tarikh lain. Tick TIADA KES akan reset automatik.")
                         st.balloons()
                         st.info("⬇️ Scroll ke bawah untuk lihat borang lengkap berisi data, download PDF & hantar WhatsApp")
 
@@ -2069,33 +2098,65 @@ with col_content:
                     if sel_tarikh != "Semua Tarikh":
                         filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
                     
-                    # ===== BUTTON CETAK PUKAL DALAM CETAK BORANG BLPP (KASHAH REQUEST) =====
+                    # ========== BUTTON CETAK PUKAL PDF - JPN ==========
                     if sel_tarikh != "Semua Tarikh" and len(filtered_by_tarikh)>0:
                         st.markdown("---")
-                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh} (Ada Logo, 1 Muka)")
-                        st.info(f"📅 {len(filtered_by_tarikh)} laporan - Rapat tanpa jarak, TIADA KES jadi 1 muka sahaja")
+                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh}")
+                        st.info(f"📅 {len(filtered_by_tarikh)} laporan pada {sel_tarikh} untuk PPD {sel_ppd} sedia untuk download pukal. Klik butang di bawah, sistem akan download ZIP berisi semua laporan PDF (ada logo) pada hari tersebut. Simpan ZIP di folder Desktop anda.")
+                        
                         col_dl1, col_dl2 = st.columns([2,1])
                         with col_dl1:
                             if st.button(f"📦 Jana ZIP Pukal PDF ({len(filtered_by_tarikh)} laporan)", key=f"bulk_{sel_tarikh}_{sel_ppd}", type="primary", use_container_width=True):
-                                with st.spinner(f"Jana {len(filtered_by_tarikh)} PDF..."):
+                                with st.spinner(f"Sedang jana {len(filtered_by_tarikh)} PDF dengan logo untuk tarikh {sel_tarikh}..."):
                                     zip_data, count = create_bulk_pdf_zip_by_date(available_reports, sel_tarikh)
                                     if zip_data:
                                         st.session_state[f"bulk_zip_{sel_tarikh}"] = zip_data
                                         st.session_state[f"bulk_count_{sel_tarikh}"] = count
-                                        st.success(f"✅ {count} laporan berjaya!")
+                                        st.success(f"✅ {count} laporan berjaya dijana dengan logo! Klik butang Download di sebelah.")
                                     else:
                                         st.error("Gagal jana ZIP")
+                        
                         with col_dl2:
-                            zk = f"bulk_zip_{sel_tarikh}"
-                            if zk in st.session_state:
+                            zip_key = f"bulk_zip_{sel_tarikh}"
+                            if zip_key in st.session_state:
                                 st.download_button(
                                     label=f"⬇️ Download ZIP ({st.session_state.get(f'bulk_count_{sel_tarikh}',0)} fail)",
-                                    data=st.session_state[zk],
+                                    data=st.session_state[zip_key],
                                     file_name=f"BLPP_PUKAL_{sel_ppd}_{sel_tarikh}_{len(filtered_by_tarikh)}laporan.zip",
                                     mime="application/zip",
                                     key=f"download_zip_{sel_tarikh}",
-                                    use_container_width=True
+                                    use_container_width=True,
+                                    help="Simpan di Desktop anda - ZIP mengandungi semua PDF laporan ada logo"
                                 )
+                                st.caption("💡 Tip: Save ZIP di Desktop, extract, semua PDF ada logo dalam folder")
+                    elif sel_tarikh == "Semua Tarikh" and len(available_reports)>0:
+                        st.markdown("---")
+                        st.markdown(f"### 📥 Download Pukal Ikut Tarikh - PPD {sel_ppd}")
+                        st.caption(f"Total {len(available_reports)} laporan. Pilih tarikh spesifik untuk download pukal.")
+                        from collections import Counter
+                        tarikh_counts = Counter([r.get('tarikh','') for r in available_reports])
+                        for t, c in sorted(tarikh_counts.items(), reverse=True)[:10]:
+                            col_t1, col_t2, col_t3 = st.columns([2,1,1])
+                            with col_t1:
+                                st.write(f"📅 {t} - {c} laporan")
+                            with col_t2:
+                                if st.button(f"Jana ZIP", key=f"jana_{t}_{sel_ppd}"):
+                                    with st.spinner(f"Jana {c} PDF ada logo..."):
+                                        zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
+                                        if zip_data:
+                                            st.session_state[f"bulk_zip_{t}"] = zip_data
+                                            st.session_state[f"bulk_count_{t}"] = count
+                                            st.success(f"✅ {count} laporan {t} sedia ada logo!")
+                            with col_t3:
+                                zk = f"bulk_zip_{t}"
+                                if zk in st.session_state:
+                                    st.download_button(
+                                        label=f"⬇️ ZIP {c} fail",
+                                        data=st.session_state[zk],
+                                        file_name=f"BLPP_PUKAL_{sel_ppd}_{t}_{c}laporan.zip",
+                                        mime="application/zip",
+                                        key=f"dl_{t}_{sel_ppd}"
+                                    )
                     
                     # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
                     pusat_map = {}
@@ -2265,67 +2326,8 @@ with col_content:
                 st.link_button("📱 Hantar WhatsApp", wa_link_cetak, use_container_width=True, key=f"wa_btn_{selected_report.get('id','')}")
 
 
-    # ========== MENU BARU: DOWNLOAD PUKAL ZIP ==========
-    elif menu.startswith("📦"):
-        st.markdown('<div class="card"><h3>📦 Download Pukal ZIP - Semua Laporan PDF Ikut Tarikh</h3><p style="font-size:12px;">Fix: Ada logo, Tiada jarak antara table, TIADA KES 1 muka sahaja</p></div>', unsafe_allow_html=True)
-        if not reports:
-            st.warning("Belum ada laporan")
-        else:
-            available_reports = reports
-            if peranan_user == "PPD":
-                user_ppd = user["ppd"]
-                user_kod = user.get("kod_ppd","")
-                def match_ppd_bulk(r):
-                    r_ppd = str(r.get("ppd","")).strip()
-                    r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                    if r_ppd == user_ppd: return True
-                    if user_kod and r_kod == user_kod.upper(): return True
-                    if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"): return True
-                    if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"): return True
-                    return False
-                available_reports = [r for r in reports if match_ppd_bulk(r)]
-            else:
-                sel_ppd_bulk = st.selectbox("1️⃣ Pilih PPD", ["Semua"] + PPD_LIST, key="ppd_bulk_menu")
-                if sel_ppd_bulk != "Semua":
-                    def match_jpn_bulk(r):
-                        r_ppd = str(r.get("ppd","")).strip()
-                        r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                        kod_sel = PPD_TO_KOD.get(sel_ppd_bulk, "")
-                        if r_ppd == sel_ppd_bulk: return True
-                        if kod_sel and r_kod == kod_sel: return True
-                        if sel_ppd_bulk == "Petaling Utama" and (r_ppd in ["BK", "Petaling Utama"] or str(r.get("no_pusat","")).upper().startswith("BK")): return True
-                        return False
-                    available_reports = [r for r in reports if match_jpn_bulk(r)]
-            if not available_reports:
-                st.warning("Tiada laporan")
-            else:
-                from collections import Counter
-                tarikh_counts = Counter([r.get('tarikh','') for r in available_reports if r.get('tarikh')])
-                for t, c in sorted(tarikh_counts.items(), reverse=True):
-                    col1, col2, col3 = st.columns([2,1,1])
-                    with col1:
-                        st.write(f"📅 {t} - {c} laporan")
-                    with col2:
-                        if st.button(f"Jana ZIP", key=f"bulk_menu_jana_{t}"):
-                            with st.spinner(f"Jana {c} PDF..."):
-                                zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
-                                if zip_data:
-                                    st.session_state[f"bulk_menu_zip_{t}"] = zip_data
-                                    st.success(f"✅ {count} siap!")
-                    with col3:
-                        zk = f"bulk_menu_zip_{t}"
-                        if zk in st.session_state:
-                            st.download_button(
-                                label=f"⬇️ ZIP {c}",
-                                data=st.session_state[zk],
-                                file_name=f"BLPP_PUKAL_{t}_{c}laporan.zip",
-                                mime="application/zip",
-                                key=f"bulk_menu_dl_{t}"
-                            )
-
     # ========== MENU: PADAM LAPORAN - JPN SAHAJA (KASHAH REQUEST) ==========
     elif menu.startswith("🗑️"):
-
         st.markdown('<div class="card"><h3>🗑️ Padam Laporan - JPN Selangor</h3><p style="font-size:12px;">Function delete: satu persatu, ikut hari, ikut daerah, keseluruhan</p></div>', unsafe_allow_html=True)
         
         if peranan_user != "ADMIN_JPN":
