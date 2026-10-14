@@ -1528,33 +1528,62 @@ with col_content:
                 nama_kp = st.text_input("Nama KP", value="")
                 st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
         
-            # Form untuk kes sahaja (bukan peperiksaan info)
-            with st.form("blpp_form", clear_on_submit=False):
-
+            # ===== FIX CRITICAL KASHAH: CHECKBOX & BILANGAN KES DI LUAR FORM - ADA BUTANG ENTER SENDIRI =====
+            st.markdown("---")
+            st.markdown("#### 📋 Butiran Kes Luar Dugaan")
             
-                st.markdown("---")
-                st.markdown("#### 📋 Butiran Kes Luar Dugaan")
-                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=False)
+            # Init session
+            if "checkbox_tiada_kes" not in st.session_state:
+                st.session_state["checkbox_tiada_kes"] = False
+            if "num_kes_input" not in st.session_state:
+                st.session_state["num_kes_input"] = 1
             
-                kes_data = []
-                if not tiada_kes:
-                    st.markdown("**Isi maklumat calon yang terlibat (boleh tambah banyak):**")
-                    num_kes = st.number_input("Bilangan Kes", min_value=1, max_value=20, value=1)
-                    for i in range(num_kes):
-                        st.markdown(f"**Kes {i+1}**")
-                        c1, c2, c3 = st.columns([1,1,2])
+            col_check, col_enter = st.columns([3,1])
+            with col_check:
+                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=st.session_state["checkbox_tiada_kes"], key="checkbox_tiada_kes")
+            with col_enter:
+                if st.button("↩️ ENTER / Kemaskini", key="btn_enter_kes", help="Tekan ENTER untuk kemaskini paparan tanpa hantar laporan"):
+                    st.rerun()
+            
+            st.session_state["current_tiada_kes"] = tiada_kes
+            
+            kes_data = []
+            if not tiada_kes:
+                col_num, col_enter2 = st.columns([3,1])
+                with col_num:
+                    num_kes = st.number_input("Bilangan Kes (1-20) - Jika 2 calon, pilih 2", min_value=1, max_value=20, value=st.session_state.get("num_kes_input", 1), key="num_kes_input")
+                with col_enter2:
+                    if st.button("↩️ ENTER", key="btn_enter_num", help="Tekan ENTER untuk tambah Kes 2 tanpa hantar"):
+                        st.rerun()
+                
+                st.info("💡 Lepas tick/untick atau tukar bilangan kes, tekan butang ↩️ ENTER untuk kemaskini paparan. Bukan butang Hantar Laporan!")
+                
+                for i in range(num_kes):
+                    with st.container(border=True):
+                        st.markdown(f"### 📋 Kes {i+1} - Calon Ke-{i+1}")
+                        if i==1:
+                            st.warning(f"📌 Kes {i+1} - Ini kes kedua! Terus muncul lepas tekan ENTER!")
+                        c1, c2 = st.columns(2)
                         with c1:
-                            ag = st.text_input(f"Angka Giliran {i+1}", key=f"ag_{i}", placeholder="Contoh: BC123456")
+                            ag = st.text_input(f"Angka Giliran Calon {i+1}", key=f"ag_{i}", placeholder="BB057001")
                         with c2:
-                            ic = st.text_input(f"No. IC {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
-                        with c3:
-                            pass
+                            ic = st.text_input(f"No. IC Calon {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
                         c4, c5 = st.columns(2)
                         with c4:
-                            kes = st.text_area(f"Kes {i+1} (sakit tiba-tiba / kemalangan / ditahan polis / lain-lain)", key=f"kes_{i}", height=80, placeholder="Nyatakan kes secara terperinci...")
+                            kes = st.text_area(f"📝 Butiran Kes {i+1}", key=f"kes_{i}", height=100, placeholder="Sakit tiba-tiba / kemalangan...")
                         with c5:
-                            tindakan = st.text_area(f"Tindakan {i+1}", key=f"tind_{i}", height=80, placeholder="Tindakan yang diambil...")
-                        kes_data.append({"angka_giliran": ag, "no_ic": ic, "kes": kes, "tindakan": tindakan})
+                            tindakan = st.text_area(f"✅ Tindakan Kes {i+1}", key=f"tind_{i}", height=100, placeholder="Tindakan diambil...")
+                        # Simpan untuk submit nanti
+                        st.session_state[f"ag_{i}_val"] = ag
+                        st.session_state[f"ic_{i}_val"] = ic
+                        st.session_state[f"kes_{i}_val"] = kes
+                        st.session_state[f"tind_{i}_val"] = tindakan
+            else:
+                st.success("✅ TIADA KES - Tick bermakna tiada kes. Tekan ENTER untuk sahkan, kemudian boleh terus Hantar Laporan.")
+                num_kes = 0
+            
+            # Form hanya untuk tandatangan & hantar - TIDAK ADA checkbox dalam form
+            with st.form("blpp_form", clear_on_submit=True):
             
                 st.markdown("---")
                 st.markdown("### ✍️ Tandatangan Digital & Pengesahan Pelapor")
