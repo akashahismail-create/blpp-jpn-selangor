@@ -1545,22 +1545,37 @@ with col_content:
                 kes_data = []
                 if not tiada_kes:
                     st.markdown("**Isi maklumat calon yang terlibat (boleh tambah banyak):**")
-                    num_kes = st.number_input("Bilangan Kes", min_value=1, max_value=20, value=1)
+                    st.info("💡 Jika ada 2 kes, set Bilangan Kes = 2, kemudian scroll ke bawah - Kes 1 di atas, Kes 2 di bawahnya!")
+                    num_kes = st.number_input("Bilangan Kes (1-20) - Jika 2 calon sakit, pilih 2", min_value=1, max_value=20, value=1, key="num_kes_input")
+                    kes_data = []
                     for i in range(num_kes):
-                        st.markdown(f"**Kes {i+1}**")
-                        c1, c2, c3 = st.columns([1,1,2])
-                        with c1:
-                            ag = st.text_input(f"Angka Giliran {i+1}", key=f"ag_{i}", placeholder="Contoh: BC123456")
-                        with c2:
-                            ic = st.text_input(f"No. IC {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
-                        with c3:
-                            pass
-                        c4, c5 = st.columns(2)
-                        with c4:
-                            kes = st.text_area(f"Kes {i+1} (sakit tiba-tiba / kemalangan / ditahan polis / lain-lain)", key=f"kes_{i}", height=80, placeholder="Nyatakan kes secara terperinci...")
-                        with c5:
-                            tindakan = st.text_area(f"Tindakan {i+1}", key=f"tind_{i}", height=80, placeholder="Tindakan yang diambil...")
-                        kes_data.append({"angka_giliran": ag, "no_ic": ic, "kes": kes, "tindakan": tindakan})
+                        with st.container(border=True):
+                            st.markdown(f"### 📋 Kes {i+1} - Calon Ke-{i+1}")
+                            if i==1:
+                                st.caption("⬇️ Ini adalah Kes Kedua - Isi di sini untuk kes kedua! Scroll ke bawah dari Kes 1")
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                ag = st.text_input(f"Angka Giliran Calon {i+1}", key=f"ag_{i}", placeholder="Contoh: BB057001 / BC123456")
+                            with c2:
+                                ic = st.text_input(f"No. IC / MyKad Calon {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
+                            c4, c5 = st.columns(2)
+                            with c4:
+                                kes = st.text_area(f"📝 Butiran Kes {i+1} (sakit tiba-tiba / kemalangan / ditahan polis)", key=f"kes_{i}", height=100, placeholder=f"Contoh Kes {i+1}: Calon mengadu sakit perut tiba-tiba pada 10:30 pagi, muntah, tidak dapat meneruskan peperiksaan...")
+                            with c5:
+                                tindakan = st.text_area(f"✅ Tindakan Diambil untuk Kes {i+1}", key=f"tind_{i}", height=100, placeholder=f"Contoh Tindakan {i+1}: Calon dibawa ke bilik rehat, diberi rawatan awal oleh petugas kesihatan, kertas jawapan disimpan...")
+                            # Simpan - hanya jika ada isi, kalau kosong jangan simpan (elak baris kosong dalam PDF)
+                            if ag.strip() or ic.strip() or kes.strip() or tindakan.strip():
+                                kes_data.append({"angka_giliran": ag.strip(), "no_ic": ic.strip(), "kes": kes.strip(), "tindakan": tindakan.strip()})
+                            else:
+                                # Jika kosong dan ini adalah kes yang user set tapi tak isi, tetap simpan placeholder kosong untuk tunjuk baris kosong? 
+                                # Untuk elak baris kosong di PDF, kita skip jika semua kosong kecuali jika num_kes=1 dan memang tiada isi (akan jadi TIADA KES handling lain)
+                                # Tapi untuk kes 2, jika user set 2 tapi isi 1 je, kita akan ada 1 kes je, bukan 2 baris kosong
+                                pass
+                            st.markdown("---")
+                    # Jika semua kosong tapi user tick ada kes, kekalkan at least 1 entry kosong supaya tidak jadi TIADA KES
+                    if not kes_data:
+                        # User set bilangan kes tapi tak isi apa-apa, kekalkan 1 entri kosong untuk warning
+                        kes_data = [{"angka_giliran": "", "no_ic": "", "kes": "", "tindakan": ""}]
             
                 st.markdown("---")
                 st.markdown("### ✍️ Tandatangan Digital & Pengesahan Pelapor")
