@@ -838,10 +838,9 @@ with col_content:
             # ensure tidak kosong
             centers = ensure_centers(centers) if 'ensure_centers' in globals() else centers
         
-            # Step 2: Pilih Daerah
-            colD1, colD2, colD3 = st.columns([1,1,1])
+            # Step 2: Pilih Daerah - FIX: Dropdown nampak full nama + Maklumat Pusat boleh edit
+            colD1, colD2 = st.columns([1, 2.2])
             with colD1:
-                # Filter ikut PPD user jika KP, tapi boleh pilih lain juga
                 selected_ppd = st.selectbox("Pilih Daerah / PPD", PPD_LIST, index=PPD_LIST.index(user["ppd"]) if user["ppd"] in PPD_LIST else 0)
         
             # Filter centers by PPD
@@ -849,10 +848,10 @@ with col_content:
         
             with colD2:
                 if filtered_by_ppd:
-                    # Pilih Nama Sekolah
                     sekolah_options = sorted(list(set([c["Nama_Pusat"] for c in filtered_by_ppd])))
-                    selected_sekolah = st.selectbox(f"Pilih Nama Sekolah ({len(sekolah_options)} sekolah di {selected_ppd})", sekolah_options)
-                    # Cari No Pusat dari sekolah
+                    selected_sekolah = st.selectbox(f"Pilih Nama Sekolah ({len(sekolah_options)} sekolah di {selected_ppd}) - Taip untuk cari", sekolah_options)
+                    # Papar full nama di bawah supaya tak truncated
+                    st.caption(f"📌 Dipilih: {selected_sekolah}")
                     matched = [c for c in filtered_by_ppd if c["Nama_Pusat"] == selected_sekolah]
                     if matched:
                         auto_no_pusat = matched[0]["No_Pusat"]
@@ -865,18 +864,33 @@ with col_content:
                     selected_sekolah = ""
                     auto_no_pusat = ""
                     auto_kod_ppd = ""
-        
-            with colD3:
-                st.markdown("**Maklumat Pusat (Auto)**")
-                if auto_no_pusat:
-                    st.success(f"No Pusat: {auto_no_pusat} | Kod: {auto_kod_ppd} | {selected_ppd}")
-                else:
-                    st.info("Pilih sekolah untuk auto No Pusat")
-        
-            # Jika dah pilih sekolah, baru keluar form BLPP
-            if not auto_no_pusat or not selected_sekolah:
+            
+            # Maklumat Pusat - BOLEH EDIT oleh KP (sebab 1 sekolah banyak pusat)
+            st.markdown("#### 📝 Maklumat Pusat (Boleh Edit - Ketua Pengawas Isi)")
+            st.info("💡 Satu sekolah mungkin ada banyak pusat. KP boleh edit No. Pusat & Nama Pusat di bawah ikut keperluan sebenar.")
+            colM1, colM2, colM3 = st.columns([1, 2, 1])
+            with colM1:
+                # Boleh edit - tidak auto disabled lagi
+                edit_no_pusat = st.text_input("No. Pusat (Edit jika perlu)", value=auto_no_pusat, key="edit_no_pusat_input", help="Auto dari data, tapi KP boleh tukar jika sekolah ada banyak pusat")
+            with colM2:
+                edit_nama_sekolah = st.text_input("Nama Sekolah/Pusat (Edit jika perlu)", value=selected_sekolah, key="edit_nama_sekolah_input", help="Nama penuh akan nampak di sini, boleh edit")
+            with colM3:
+                edit_kod_ppd = st.text_input("Kod PPD", value=auto_kod_ppd, key="edit_kod_input")
+            
+            # Override auto dengan yang diedit
+            final_no_pusat = edit_no_pusat if edit_no_pusat else auto_no_pusat
+            final_nama_sekolah = edit_nama_sekolah if edit_nama_sekolah else selected_sekolah
+            final_kod_ppd = edit_kod_ppd if edit_kod_ppd else auto_kod_ppd
+            
+            # Jika belum pilih
+            if not final_no_pusat or not final_nama_sekolah:
                 st.info("👆 Sila pilih Daerah dan Nama Sekolah untuk papar borang BLPP")
                 st.stop()
+            
+            # Guna final values untuk seterusnya
+            auto_no_pusat = final_no_pusat
+            selected_sekolah = final_nama_sekolah
+            auto_kod_ppd = final_kod_ppd
         
             # Form BLPP sebenar
             st.markdown("---")
