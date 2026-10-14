@@ -143,13 +143,10 @@ PEPERIKSAAN_LIST = [
     "SPM Ulangan 2026", 
     "Ujian Amali Sains SPM", 
     "STAM 2026",
-    "Ujian Bertutur Bahasa Melayu SPM",
-    "Ujian Bertutur Bahasa Inggeris SPM",
-    "Ujian Mendengar Bahasa Melayu & Bahasa Inggeris SPM",
-    "Ujian Bertutur BM",
-    "Ujian Bertutur BI",
-    "Ujian Mendengar"
-]  # TAMBAH Ujian Bertutur BM, BI, Mendengar ikut request Kashah
+    "UJIAN BERTUTUR BAHASA MELAYU",
+    "UJIAN BERTUTUR BAHASA INGGERIS",
+    "UJIAN MENDENGAR"
+]  # FIX KASHAH: Hanya 3 tambah je - Bertutur BM, Bertutur BI, Mendengar - HURUF BESAR
 
 JENIS_PEPERIKSAAN = ["Peperiksaan SPM (504 Pusat)", "Ujian Amali Sains (277 Pusat Makmal)", "Ujian Bertutur & Mendengar"]
 
@@ -410,7 +407,7 @@ def jana_blpp_html(report):
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
     nama_kp = report.get('nama_kp','')
-    peperiksaan = report.get('peperiksaan','')
+    peperiksaan = report.get('peperiksaan','').upper()  # HURUF BESAR dalam borang cetak
     tahun = report.get('tahun','')
     kes_data = report.get('kes_data', [])
     tiada_kes = report.get('tiada_kes', False)
@@ -1597,7 +1594,7 @@ with col_content:
                         
                         new_report = {
                             "id": f"BLPP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{no_pusat}",
-                            "peperiksaan": peperiksaan,
+                            "peperiksaan": peperiksaan.upper().strip(),  # FIX: HURUF BESAR dalam report
                             "tahun": tahun,
                             "no_pusat": no_pusat,
                             "nama_pusat": nama_pusat,
