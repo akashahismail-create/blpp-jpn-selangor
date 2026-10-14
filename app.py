@@ -453,7 +453,6 @@ def clear_reports_cache():
 
 
 def jana_blpp_html(report):
-    # FIX UnboundLocalError - define semua variable di atas sekali
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
     nama_kp = report.get('nama_kp','')
@@ -462,7 +461,6 @@ def jana_blpp_html(report):
     kes_data = report.get('kes_data', [])
     tiada_kes = report.get('tiada_kes', False)
     pelapor_html = report.get('pelapor','') or ""
-    
     logo_b64 = ""
     try:
         import base64, os
@@ -481,9 +479,9 @@ def jana_blpp_html(report):
             except:
                 pass
         if not logo_b64:
-            logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+            logo_b64 = "[STRIPPED 92 bytes]"
     except:
-        logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+        logo_b64 = "[STRIPPED 92 bytes]"
 
     
     sig_b64_html = report.get('tandatangan_b64','')
@@ -593,8 +591,6 @@ def jana_blpp_html(report):
     </div></body></html>
     """
     return html
-
-# ========== FUNGSI DOWNLOAD PUKAL PDF ADA LOGO ==========
 def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
     import zipfile
     from io import BytesIO
@@ -691,7 +687,6 @@ def jana_blpp_pdf(report):
 
         pdf.set_font("Helvetica", "", 8.2)
         pdf.set_xy(10, 36)
-        # FIX KASHAH: Tulisan arahan sampai ke hujung garisan sempadan (justify full 277mm)
         pdf.set_font("Helvetica", "", 7.2)
         arahan_full_1 = "1.  Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain."
         arahan_full_2 = "2.  Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."
@@ -703,7 +698,7 @@ def jana_blpp_pdf(report):
         # ===== TABLE 1 - IKUT TEMPLATE ASAL =====
         # Total 277mm : 20% = 55.4, 38% = 105.26, 42% = 116.34
         y1 = 56
-        w1, w2, w3 = 60, 131, 86  # FIX: Garis menegak lurus - align dengan Table2
+        w1, w2, w3 = 60, 131, 86  # FIX: Garis menegak lurus
         h_header = 14
 
         pdf.set_font("Helvetica", "B", 8.5)
@@ -737,7 +732,7 @@ def jana_blpp_pdf(report):
         # ===== TABLE 2 - FIX GARISAN MERAH SAMA ATAS BAWAH =====
         # Pastikan outer width sama 277mm macam table atas: 10 ke 287
         # Dan semua vertical line guna x yang exact, tak ada rounding error
-        y2 = y1 + h_header + h_data + 0  # FIX FINAL: TIADA JARAK, RAPAT 0mm
+        y2 = y1 + h_header + h_data + 0  # FIX: Tiada jarak, rapat
         # Guna width yang buat vertical line bawah lurus sama dari header sampai bawah
         wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86  # total 277
         h2_header = 10
@@ -1009,7 +1004,6 @@ def jana_blpp_pdf(report):
             # Kalau ada 1 kes, terus guna tinggi sebenar sahaja - tak perlu isi kosong
             # total_table_h sudah dikira dari row_heights, kekalkan
 
-        # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
         page_limit = 185
         try:
             curr_bottom = row_y
@@ -1535,47 +1529,32 @@ with col_content:
                 st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
         
             # Form untuk kes sahaja (bukan peperiksaan info)
-            with st.form("blpp_form", clear_on_submit=True):  # FIX: Clear selepas hantar
+            with st.form("blpp_form", clear_on_submit=False):
 
             
                 st.markdown("---")
                 st.markdown("#### 📋 Butiran Kes Luar Dugaan")
-                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=False, key="checkbox_tiada_kes")
+                tiada_kes = st.checkbox("☑️ TIADA KES LUAR DUGAAN PADA HARI INI (Tick jika tiada kes)", value=False)
             
                 kes_data = []
                 if not tiada_kes:
                     st.markdown("**Isi maklumat calon yang terlibat (boleh tambah banyak):**")
-                    st.info("💡 Jika ada 2 kes, set Bilangan Kes = 2, kemudian scroll ke bawah - Kes 1 di atas, Kes 2 di bawahnya!")
-                    num_kes = st.number_input("Bilangan Kes (1-20) - Jika 2 calon sakit, pilih 2", min_value=1, max_value=20, value=1, key="num_kes_input")
-                    kes_data = []
+                    num_kes = st.number_input("Bilangan Kes", min_value=1, max_value=20, value=1)
                     for i in range(num_kes):
-                        with st.container(border=True):
-                            st.markdown(f"### 📋 Kes {i+1} - Calon Ke-{i+1}")
-                            if i==1:
-                                st.caption("⬇️ Ini adalah Kes Kedua - Isi di sini untuk kes kedua! Scroll ke bawah dari Kes 1")
-                            c1, c2 = st.columns(2)
-                            with c1:
-                                ag = st.text_input(f"Angka Giliran Calon {i+1}", key=f"ag_{i}", placeholder="Contoh: BB057001 / BC123456")
-                            with c2:
-                                ic = st.text_input(f"No. IC / MyKad Calon {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
-                            c4, c5 = st.columns(2)
-                            with c4:
-                                kes = st.text_area(f"📝 Butiran Kes {i+1} (sakit tiba-tiba / kemalangan / ditahan polis)", key=f"kes_{i}", height=100, placeholder=f"Contoh Kes {i+1}: Calon mengadu sakit perut tiba-tiba pada 10:30 pagi, muntah, tidak dapat meneruskan peperiksaan...")
-                            with c5:
-                                tindakan = st.text_area(f"✅ Tindakan Diambil untuk Kes {i+1}", key=f"tind_{i}", height=100, placeholder=f"Contoh Tindakan {i+1}: Calon dibawa ke bilik rehat, diberi rawatan awal oleh petugas kesihatan, kertas jawapan disimpan...")
-                            # Simpan - hanya jika ada isi, kalau kosong jangan simpan (elak baris kosong dalam PDF)
-                            if ag.strip() or ic.strip() or kes.strip() or tindakan.strip():
-                                kes_data.append({"angka_giliran": ag.strip(), "no_ic": ic.strip(), "kes": kes.strip(), "tindakan": tindakan.strip()})
-                            else:
-                                # Jika kosong dan ini adalah kes yang user set tapi tak isi, tetap simpan placeholder kosong untuk tunjuk baris kosong? 
-                                # Untuk elak baris kosong di PDF, kita skip jika semua kosong kecuali jika num_kes=1 dan memang tiada isi (akan jadi TIADA KES handling lain)
-                                # Tapi untuk kes 2, jika user set 2 tapi isi 1 je, kita akan ada 1 kes je, bukan 2 baris kosong
-                                pass
-                            st.markdown("---")
-                    # Jika semua kosong tapi user tick ada kes, kekalkan at least 1 entry kosong supaya tidak jadi TIADA KES
-                    if not kes_data:
-                        # User set bilangan kes tapi tak isi apa-apa, kekalkan 1 entri kosong untuk warning
-                        kes_data = [{"angka_giliran": "", "no_ic": "", "kes": "", "tindakan": ""}]
+                        st.markdown(f"**Kes {i+1}**")
+                        c1, c2, c3 = st.columns([1,1,2])
+                        with c1:
+                            ag = st.text_input(f"Angka Giliran {i+1}", key=f"ag_{i}", placeholder="Contoh: BC123456")
+                        with c2:
+                            ic = st.text_input(f"No. IC {i+1}", key=f"ic_{i}", placeholder="990101-10-1234")
+                        with c3:
+                            pass
+                        c4, c5 = st.columns(2)
+                        with c4:
+                            kes = st.text_area(f"Kes {i+1} (sakit tiba-tiba / kemalangan / ditahan polis / lain-lain)", key=f"kes_{i}", height=80, placeholder="Nyatakan kes secara terperinci...")
+                        with c5:
+                            tindakan = st.text_area(f"Tindakan {i+1}", key=f"tind_{i}", height=80, placeholder="Tindakan yang diambil...")
+                        kes_data.append({"angka_giliran": ag, "no_ic": ic, "kes": kes, "tindakan": tindakan})
             
                 st.markdown("---")
                 st.markdown("### ✍️ Tandatangan Digital & Pengesahan Pelapor")
@@ -1721,8 +1700,8 @@ with col_content:
                             "tarikh": tarikh.strftime("%Y-%m-%d"),
                             "sidang": sidang,
                             "tarikh_submit": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                            "kes_data": [] if st.session_state.get("current_tiada_kes", False) else kes_data,
-                            "tiada_kes": st.session_state.get("current_tiada_kes", False),
+                            "kes_data": [] if st.session_state.get("checkbox_tiada_kes", False) else [ {"angka_giliran": st.session_state.get(f"ag_{i}", "").strip(), "no_ic": st.session_state.get(f"ic_{i}", "").strip(), "kes": st.session_state.get(f"kes_{i}", "").strip(), "tindakan": st.session_state.get(f"tind_{i}", "").strip()} for i in range(st.session_state.get("num_kes_input", 1)) if st.session_state.get(f"ag_{i}", "").strip() or st.session_state.get(f"ic_{i}", "").strip() or st.session_state.get(f"kes_{i}", "").strip() or st.session_state.get(f"tind_{i}", "").strip() ] or [{"angka_giliran": "", "no_ic": "", "kes": "", "tindakan": ""}],
+                            "tiada_kes": st.session_state.get("checkbox_tiada_kes", False),
                             "pelapor": pelapor_nama,
                             "id_kp": user["id"],
                             "telefon_kp": telefon_kp,
@@ -2057,22 +2036,6 @@ with col_content:
                     if sel_tarikh != "Semua Tarikh":
                         filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
                     
-                    if sel_tarikh != "Semua Tarikh" and len(filtered_by_tarikh)>0:
-                        st.markdown("---")
-                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh}")
-                        col_dl1, col_dl2 = st.columns([2,1])
-                        with col_dl1:
-                            if st.button(f"📦 Jana ZIP Pukal PDF ({len(filtered_by_tarikh)} laporan)", key=f"bulk_{sel_tarikh}_{sel_ppd}", type="primary", use_container_width=True):
-                                with st.spinner(f"Jana {len(filtered_by_tarikh)} PDF..."):
-                                    zip_data, count = create_bulk_pdf_zip_by_date(available_reports, sel_tarikh)
-                                    if zip_data:
-                                        st.session_state[f"bulk_zip_{sel_tarikh}"] = zip_data
-                                        st.success(f"✅ {count} laporan!")
-                        with col_dl2:
-                            zk = f"bulk_zip_{sel_tarikh}"
-                            if zk in st.session_state:
-                                st.download_button(label=f"⬇️ Download ZIP", data=st.session_state[zk], file_name=f"BLPP_PUKAL_{sel_ppd}_{sel_tarikh}.zip", mime="application/zip", key=f"download_zip_{sel_tarikh}", use_container_width=True)
-                    
                     # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
                     pusat_map = {}
                     for r in filtered_by_tarikh:
@@ -2241,32 +2204,8 @@ with col_content:
                 st.link_button("📱 Hantar WhatsApp", wa_link_cetak, use_container_width=True, key=f"wa_btn_{selected_report.get('id','')}")
 
 
-    # ========== MENU BARU: DOWNLOAD PUKAL ZIP ==========
-    elif menu.startswith("📦"):
-        st.markdown('<div class="card"><h3>📦 Download Pukal ZIP</h3><p>Fix: Logo, Tiada jarak, Garis lurus, Tulisan sampai sempadan, 1 muka TIADA KES</p></div>', unsafe_allow_html=True)
-        if not reports:
-            st.warning("Belum ada laporan")
-        else:
-            available_reports = reports
-            from collections import Counter
-            tarikh_counts = Counter([r.get('tarikh','') for r in available_reports if r.get('tarikh')])
-            for t, c in sorted(tarikh_counts.items(), reverse=True):
-                col1, col2, col3 = st.columns([2,1,1])
-                with col1:
-                    st.write(f"📅 {t} - {c} laporan")
-                with col2:
-                    if st.button(f"Jana ZIP", key=f"bulk_menu_jana_{t}"):
-                        zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
-                        if zip_data:
-                            st.session_state[f"bulk_menu_zip_{t}"] = zip_data
-                with col3:
-                    zk = f"bulk_menu_zip_{t}"
-                    if zk in st.session_state:
-                        st.download_button(label=f"⬇️ ZIP {c}", data=st.session_state[zk], file_name=f"BLPP_PUKAL_{t}_{c}laporan.zip", mime="application/zip", key=f"bulk_menu_dl_{t}")
-
     # ========== MENU: PADAM LAPORAN - JPN SAHAJA (KASHAH REQUEST) ==========
     elif menu.startswith("🗑️"):
-
         st.markdown('<div class="card"><h3>🗑️ Padam Laporan - JPN Selangor</h3><p style="font-size:12px;">Function delete: satu persatu, ikut hari, ikut daerah, keseluruhan</p></div>', unsafe_allow_html=True)
         
         if peranan_user != "ADMIN_JPN":
