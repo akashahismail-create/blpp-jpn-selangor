@@ -416,7 +416,7 @@ def jana_blpp_html(report):
             <div class="hdr-center">LEMBAGA PEPERIKSAAN<br>KEMENTERIAN PENDIDIKAN MALAYSIA</div>
             <div class="hdr-right">LP/Am 90 Pin. 1/2023<br><b style="font-size:13pt;">BLPP</b></div>
         </div>
-        <hr>
+        <!-- hr dibuang ikut request biru -->
         <div class="pep">{pep_line}</div>
         <div class="title">BORANG LAPORAN PENGENDALIAN PEPERIKSAAN</div>
         <div class="arahan"><ol>
@@ -510,8 +510,7 @@ def jana_blpp_pdf(report):
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
 
-        # Garis
-        pdf.line(10, 20, 287, 20)
+        # Garis atas dibuang ikut request - tiada line biru
 
         pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
         pdf.set_font("Helvetica", "B", 11)
@@ -572,46 +571,69 @@ def jana_blpp_pdf(report):
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.cell(w3, h_data, nama_kp[:65], border=1, align="C")
 
-        # ===== TABLE 2 - BIL, ANGKA GILIRAN, NO KP, KES, TINDAKAN =====
-        # 6% =16.6, 16%=44.3, 16%=44.3, 31%=85.87, 31%=85.87 => 277
+        # ===== TABLE 2 - FIX GARISAN MERAH SAMA ATAS BAWAH =====
+        # Pastikan outer width sama 277mm macam table atas: 10 ke 287
+        # Dan semua vertical line guna x yang exact, tak ada rounding error
         y2 = y1 + h_header + h_data + 6
-        wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86
+        # Guna width yang buat vertical line bawah lurus sama dari header sampai bawah
+        wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86  # total 277
         h2_header = 10
+        # Define x positions sekali, guna untuk header dan body - baru sama
+        x0 = 10
+        x1 = x0 + wb1
+        x2 = x1 + wb2
+        x3_b = x2 + wb3
+        x4 = x3_b + wb4
+        x5 = x4 + wb5  # should be 287
 
         pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(10, y2)
+        pdf.set_line_width(0.35)  # pastikan line width sama semua
+        # Header - draw dengan x exact
+        pdf.set_xy(x0, y2)
         pdf.cell(wb1, h2_header, "BIL.", border=1, align="C")
+        pdf.set_xy(x1, y2)
         pdf.cell(wb2, h2_header, "ANGKA GILIRAN", border=1, align="C")
-        # NO PENGENALAN DIRI 2 baris
-        x_no = 10+wb1+wb2
-        pdf.set_xy(x_no, y2)
+        # NO PENGENALAN DIRI 2 baris - dalam kotak yang sama border
+        pdf.set_xy(x2, y2)
         pdf.cell(wb3, h2_header, "", border=1)
-        pdf.set_xy(x_no, y2+1)
+        pdf.set_font("Helvetica", "B", 7)
+        pdf.set_xy(x2, y2+1)
         pdf.cell(wb3, 4, "NO. PENGENALAN", align="C")
-        pdf.set_xy(x_no, y2+5)
+        pdf.set_xy(x2, y2+5)
         pdf.cell(wb3, 4, "DIRI", align="C")
-        pdf.set_xy(10+wb1+wb2+wb3, y2)
+        pdf.set_font("Helvetica", "B", 7.5)
+        pdf.set_xy(x3_b, y2)
         pdf.cell(wb4, h2_header, "KES", border=1, align="C")
-        pdf.set_xy(10+wb1+wb2+wb3+wb4, y2)
+        pdf.set_xy(x4, y2)
         pdf.cell(wb5, h2_header, "TINDAKAN", border=1, align="C")
 
         # Kotak besar kosong - 5 baris, tinggi 62mm ikut template
+        # FIX MERAH: Guna x positions yang sama dengan header, baru garisan atas-bawah sama
         big_h = 62
         y_body = y2 + h2_header
-        pdf.set_xy(10, y_body)
-        # Jika tiada kes, semua kosong macam template asal
+        # Jika tiada kes, semua kosong macam template asal - guna x exact
         if tiada or not kes_data:
+            pdf.set_xy(x0, y_body)
             pdf.cell(wb1, big_h, "", border=1)
+            pdf.set_xy(x1, y_body)
             pdf.cell(wb2, big_h, "", border=1)
+            pdf.set_xy(x2, y_body)
             pdf.cell(wb3, big_h, "", border=1)
+            pdf.set_xy(x3_b, y_body)
             pdf.cell(wb4, big_h, "", border=1)
+            pdf.set_xy(x4, y_body)
             pdf.cell(wb5, big_h, "", border=1)
         else:
-            # Ada kes - tulis data
+            # Ada kes - tulis data - kotak kosong dulu guna x exact
+            pdf.set_xy(x0, y_body)
             pdf.cell(wb1, big_h, "", border=1)
+            pdf.set_xy(x1, y_body)
             pdf.cell(wb2, big_h, "", border=1)
+            pdf.set_xy(x2, y_body)
             pdf.cell(wb3, big_h, "", border=1)
+            pdf.set_xy(x3_b, y_body)
             pdf.cell(wb4, big_h, "", border=1)
+            pdf.set_xy(x4, y_body)
             pdf.cell(wb5, big_h, "", border=1)
             pdf.set_font("Helvetica", "", 7.5)
             for idx, k in enumerate(kes_data[:8]):
