@@ -397,6 +397,16 @@ def jana_blpp_html(report):
     else:
         sig_img_html = '<div style="height:55px;"></div>'
     
+    # Tarikh terus letak tarikh laporan (fix Kashah)
+    tarikh_html_raw = report.get('tarikh','')
+    try:
+        from datetime import datetime as dth
+        tarikh_html_obj = dth.strptime(tarikh_html_raw, "%Y-%m-%d")
+        tarikh_html = tarikh_html_obj.strftime("%d/%m/%Y")
+    except:
+        tarikh_html = tarikh_html_raw if tarikh_html_raw else "___/___/______"
+    
+    
     html = f"""
     <!DOCTYPE html><html><head><meta charset="utf-8">
     <style>
@@ -454,9 +464,9 @@ def jana_blpp_html(report):
             </tr>
             {kes_rows}
         </table>
-        <div class="footer">
-            <div>Pelapor:<br><div style="height:60px; margin:5px 0;">{sig_img_html}</div>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: _________________________________</div>
-            <div>Pengesahan:<br><br><br>___________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: _________________________________</div>
+                <div class="footer">
+            <div>Pelapor:<br><div style="height:60px; margin:5px 0;">{sig_img_html}</div>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: {tarikh_html}</div>
+            <div>Pengesahan:<br><br><br>___________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: {tarikh_html}</div>
         </div>
     </div></body></html>
     """
@@ -912,11 +922,20 @@ def jana_blpp_pdf(report):
         pdf.line(10, yf+20, 95, yf+20)
         pdf.line(150, yf+20, 235, yf+20)
         
+        # Tarikh terus letak tarikh laporan yang diisi di atas (fix Kashah)
+        tarikh_laporan = report.get('tarikh','')
+        try:
+            from datetime import datetime as dt
+            tarikh_obj_pdf = dt.strptime(tarikh_laporan, "%Y-%m-%d")
+            tarikh_pdf_formatted = tarikh_obj_pdf.strftime("%d/%m/%Y")
+        except:
+            tarikh_pdf_formatted = tarikh_laporan if tarikh_laporan else "___/___/______"
+        
         pdf.set_font("Helvetica", "", 7.5)
         pdf.set_xy(10, yf+22)
-        pdf.cell(80, 5, "Tarikh: ______________________")
+        pdf.cell(80, 5, f"Tarikh: {tarikh_pdf_formatted}")
         pdf.set_xy(150, yf+22)
-        pdf.cell(80, 5, "Tarikh: ______________________")
+        pdf.cell(80, 5, f"Tarikh: {tarikh_pdf_formatted}")
 
         out = pdf.output(dest='S')
         return out.encode('latin1') if isinstance(out, str) else bytes(out)
