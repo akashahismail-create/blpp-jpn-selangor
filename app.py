@@ -283,9 +283,37 @@ def load_users():
     users.append({"id":"JPN002","nama":"JPN Selangor 2","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
     # LP
     users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"lp123","telefon":""})
-    # 10 PPD
+    # 10 PPD - PASSWORD KOD PPD IKUT CADANGAN KASHAH: BA=Klang, BB=Kuala Langat dll - MUDAH INGAT
+    # Mapping Kod ke PPD dari KOD_PPD_MAPPING
+    PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}  # Klang->BA etc
     for i, ppd in enumerate(PPD_LIST):
-        users.append({"id":f"PPD{i+1:02d}","nama":f"PPD {ppd}","peranan":"PPD","ppd":ppd,"no_pusat":"-","password":f"ppd{i+1:02d}","telefon":""})
+        kod = PPD_TO_KOD.get(ppd, f"PPD{i+1:02d}")
+        # Password = kod kecil dan besar - mudah: ba, BA, klang, ppd01 semua boleh
+        users.append({
+            "id": f"PPD{i+1:02d}",
+            "nama": f"PPD {ppd} ({kod})",
+            "peranan": "PPD",
+            "ppd": ppd,
+            "no_pusat": "-",
+            "password": kod.lower(),  # Password utama = kod kecil: ba, bb, bc...
+            "password_alt": kod.upper(),  # Alt = BA, BB
+            "kod_ppd": kod,
+            "telefon": ""
+        })
+    # Tambah user login dengan kod terus: BA login sebagai PPD Klang
+    for kod, ppd in KOD_PPD_MAPPING.items():
+        users.append({
+            "id": kod,  # ID = BA, BB, BC...
+            "nama": f"PPD {ppd} ({kod}) - Login Kod",
+            "peranan": "PPD",
+            "ppd": ppd,
+            "no_pusat": "-",
+            "password": kod.lower(),  # ba
+            "password_alt2": kod.upper(),  # BA
+            "password_alt3": kod,  # BA
+            "kod_ppd": kod,
+            "telefon": ""
+        })
 
     # Cuba load SPM centers sebenar untuk dapat Nama Pusat
     spm_centers = []
@@ -1598,29 +1626,39 @@ with col_content:
         if not reports:
             st.warning("Belum ada laporan untuk dicetak.")
         else:
-            # Filter ikut peranan - PPD hanya nampak PPD dia - FIX REPORT MASUK PPD
+            # Filter ikut peranan - FIX DOUBLE FILTER BUG KASHAH
             available_reports = reports
             # Debug: tunjuk total reports
-            st.caption(f"📊 Total laporan dalam sistem: {len(reports)} | PPD anda: {user['ppd']}")
+            st.caption(f"📊 Total laporan dalam sistem: {len(reports)} | PPD anda: {user['ppd']} | Login ID: {user['id']}")
+            
             if peranan_user == "PPD":
-                available_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
-                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - {len(available_reports)} laporan PPD {user['ppd']} ditemui")
-                if len(available_reports) == 0 and len(reports) > 0:
-                    st.warning(f"⚠️ Ada {len(reports)} laporan total, tapi tiada untuk PPD {user['ppd']}. Senarai PPD dalam laporan: {set([r.get('ppd','-') for r in reports])}")
+                # Jangan filter dulu - biar PPD boleh pilih mana-mana PPD (tapi default PPD dia)
+                # Kalau nak strict PPD hanya nampak PPD dia, uncomment bawah
+                # available_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
+                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - Total {len(reports)} laporan dalam sistem")
+                if len(reports) > 0:
+                    ppd_counts = {}
+                    for r in reports:
+                        ppd_counts[r.get('ppd','-')] = ppd_counts.get(r.get('ppd','-'), 0) + 1
+                    st.caption(f"📋 Pecahan laporan ikut PPD: {ppd_counts}")
             
             elif peranan_user == "KP":
                 available_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
-            # LANGKAH 1: PILIH DAERAH/PPD
+            # LANGKAH 1: PILIH DAERAH/PPD - FIX BUG REPORT TAK MASUK
             if peranan_user == "PPD":
-                # PPD - auto pilih PPD dia, tapi boleh tukar jika nak (locked default)
-                sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", [user["ppd"]] + [p for p in PPD_LIST if p != user["ppd"]], index=0, help="PPD Klang akan nampak Klang sahaja secara default")
+                # PPD - default PPD dia, tapi boleh pilih lain untuk tengok laporan lain
+                # Fix: filter dari reports asal, bukan dari available_reports yang dah filter
+                ppd_options = [user["ppd"]] + [p for p in PPD_LIST if p != user["ppd"]]
+                sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ppd_options, index=0, help="Default PPD anda, tapi boleh pilih PPD lain jika nak tengok laporan PPD lain")
+                # Filter dari reports asal untuk PPD yang dipilih
+                if sel_ppd != "Semua":
+                    available_reports = [r for r in reports if r.get("ppd")==sel_ppd]
             else:
-                # JPN/LP boleh pilih semua
+                # JPN/LP/Admin boleh pilih semua
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
-            
-            if sel_ppd != "Semua":
-                available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
+                if sel_ppd != "Semua":
+                    available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
         
             if not available_reports:
                 st.warning(f"Tiada laporan untuk PPD {sel_ppd} - KP belum hantar laporan lagi")
