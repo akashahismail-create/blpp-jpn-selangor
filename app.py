@@ -559,7 +559,7 @@ def jana_blpp_html(report):
             <li>Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.</li>
             <li>Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan).</li>
         </ol></div>
-        <table style="margin-top:10px;">
+        <table style="margin-top:2px;">
             <tr>
                 <th style="width:20%;">NO. PUSAT</th>
                 <th style="width:38%;">NAMA PUSAT PEPERIKSAAN</th>
@@ -573,7 +573,7 @@ def jana_blpp_html(report):
                 <td style="font-weight:bold; word-wrap:break-word;">{nama_kp}</td>
             </tr>
         </table>
-        <table style="margin-top:14px;">
+        <table style="margin-top:2px;">  <!-- FIX KASHAH: Tiada jarak antara table, rapat -->
             <tr>
                 <th style="width:6%;">BIL.</th>
                 <th style="width:16%;">ANGKA GILIRAN</th>
@@ -785,7 +785,7 @@ def jana_blpp_pdf(report):
         # ===== TABLE 2 - FIX GARISAN MERAH SAMA ATAS BAWAH =====
         # Pastikan outer width sama 277mm macam table atas: 10 ke 287
         # Dan semua vertical line guna x yang exact, tak ada rounding error
-        y2 = y1 + h_header + h_data + 6
+        y2 = y1 + h_header + h_data + 1  # FIX KASHAH: Tiada jarak antara table 1 & 2, rapat terus
         # Guna width yang buat vertical line bawah lurus sama dari header sampai bawah
         wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86  # total 277
         h2_header = 10
@@ -1060,19 +1060,11 @@ def jana_blpp_pdf(report):
 
         # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
         # Jika row_y dah dekat bawah page, pindah footer ke page baru
-        # FIX 1 MUKA TIADA KES: jangan guna 62 untuk tiada kes, guna big_h atau total_table_h
         page_limit = 185  # A4 landscape usable height ~ 190mm
         try:
             curr_bottom = row_y
         except:
-            # Jika tiada kes, row_y tak wujud - guna total_table_h atau big_h
-            try:
-                curr_bottom = y_body + total_table_h
-            except:
-                try:
-                    curr_bottom = y_body + big_h
-                except:
-                    curr_bottom = y_body + 28  # TIADA KES cuma 28mm, bukan 62
+            curr_bottom = y_body + 62
         
         if curr_bottom + 35 > page_limit:
             pdf.add_page()
@@ -1378,7 +1370,7 @@ if not st.session_state.login:
 user = st.session_state.user
 peranan_user = user["peranan"]
 
-st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Created by Akash | Peranan: {peranan_user}</div></div>""", unsafe_allow_html=True)
+st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:2px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Created by Akash | Peranan: {peranan_user}</div></div>""", unsafe_allow_html=True)
 
 # ========== LAYOUT TANPA SIDEBAR - MENU KEKAL DI KIRI DALAM MAIN PAGE ==========
 # Sembunyikan sidebar asal Streamlit sepenuhnya
