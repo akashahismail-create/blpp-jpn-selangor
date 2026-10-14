@@ -1645,17 +1645,16 @@ with col_content:
             elif peranan_user == "KP":
                 available_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
-            # LANGKAH 1: PILIH DAERAH/PPD - FIX BUG REPORT TAK MASUK
+            # LANGKAH 1: PILIH DAERAH/PPD - BUANG UNTUK PPD (KASHAH REQUEST)
             if peranan_user == "PPD":
-                # PPD - default PPD dia, tapi boleh pilih lain untuk tengok laporan lain
-                # Fix: filter dari reports asal, bukan dari available_reports yang dah filter
-                ppd_options = [user["ppd"]] + [p for p in PPD_LIST if p != user["ppd"]]
-                sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ppd_options, index=0, help="Default PPD anda, tapi boleh pilih PPD lain jika nak tengok laporan PPD lain")
-                # Filter dari reports asal untuk PPD yang dipilih
-                if sel_ppd != "Semua":
-                    available_reports = [r for r in reports if r.get("ppd")==sel_ppd]
+                # PPD dah login ikut PPD dia - tak perlu pilih daerah lagi
+                sel_ppd = user["ppd"]
+                st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD Anda: {sel_ppd} ({user.get('kod_ppd','')})</b> - Auto papar laporan PPD {sel_ppd} sahaja (tak perlu pilih daerah)</div>", unsafe_allow_html=True)
+                # Filter terus ikut PPD login
+                available_reports = [r for r in reports if r.get("ppd")==sel_ppd]
+                st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
             else:
-                # JPN/LP/Admin boleh pilih semua
+                # JPN/LP/Admin masih perlu pilih PPD
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
                 if sel_ppd != "Semua":
                     available_reports = [r for r in available_reports if r.get("ppd")==sel_ppd]
