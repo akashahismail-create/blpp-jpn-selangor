@@ -569,6 +569,88 @@ def jana_blpp_html(report):
     """
     return html
 
+# ========== FUNGSI DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) ==========
+def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
+    """Create ZIP containing PDFs/HTMLs for all reports on selected date"""
+    import zipfile
+    from io import BytesIO
+    
+    filtered = [r for r in reports if r.get('tarikh') == tarikh_selected]
+    if not filtered:
+        return None, 0
+    
+    zip_buffer = BytesIO()
+    
+    # Try to import weasyprint or pdfkit for PDF conversion, fallback to HTML
+    pdf_available = False
+    try:
+        from weasyprint import HTML as WP_HTML
+        pdf_available = True
+        use_weasyprint = True
+    except:
+        try:
+            import pdfkit
+            pdf_available = True
+            use_weasyprint = False
+        except:
+            pdf_available = False
+            use_weasyprint = False
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for r in filtered:
+            no_pusat = r.get('no_pusat','UNKNOWN')
+            nama_pusat = r.get('nama_pusat','')[:20]
+            ppd = r.get('ppd','')
+            # Bersihkan nama file
+            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in nama_pusat)
+            base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}_{ppd}"
+            
+            html_content = jana_blpp_html(r)
+            
+            if pdf_available:
+                try:
+                    if use_weasyprint:
+                        pdf_bytes = WP_HTML(string=html_content).write_pdf()
+                        zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
+                    else:
+                        # pdfkit needs wkhtmltopdf binary, may fail
+                        pdf_bytes = pdfkit.from_string(html_content, False)
+                        zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
+                except Exception as e:
+                    # Fallback to HTML if PDF conversion fails
+                    zip_file.writestr(f"{base_filename}.html", html_content)
+            else:
+                # Save as HTML (user can print to PDF)
+                zip_file.writestr(f"{base_filename}.html", html_content)
+        
+        # Also add a summary CSV
+        try:
+            import pandas as pd
+            df_summary = pd.DataFrame([{
+                'Tarikh': r.get('tarikh',''),
+                'No Pusat': r.get('no_pusat',''),
+                'Nama Pusat': r.get('nama_pusat',''),
+                'PPD': r.get('ppd',''),
+                'Peperiksaan': r.get('peperiksaan',''),
+                'Nama KP': r.get('nama_kp',''),
+                'Status': 'TIADA KES' if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES",
+                'ID': r.get('id','')
+            } for r in filtered])
+            csv_buffer = BytesIO()
+            df_summary.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+            zip_file.writestr(f"RINGKASAN_{tarikh_selected}.csv", csv_buffer.getvalue())
+        except:
+            pass
+    
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue(), len(filtered)
+
+def create_single_combined_pdf(reports, tarikh_selected):
+    """Create single combined PDF with all reports for the date (optional)"""
+    # For simplicity, return None - use ZIP approach
+    return None
+
+
 
 def jana_blpp_pdf(report):
     """PDF 100% IKUT TEMPLATE ASAL LP/Am 90 Pin. 1/2023 - BLPP"""
@@ -1885,37 +1967,11 @@ with col_content:
         st.markdown(f"**Jumlah Laporan: {len(filtered)}** (dari {len(reports)} keseluruhan) | 504 Pusat | 20 Hari Peperiksaan")
     
         if filtered:
-            # OPTIMIZE LAJU: Pagination 100 per page + jangan load signature
-            # Buang tandatangan_b64 dari dataframe untuk laju (signature besar)
-            filtered_light = []
-            for r in filtered:
-                r_light = {k:v for k,v in r.items() if k not in ["tandatangan_b64", "kes_data"]}
-                r_light["jumlah_kes"] = 0 if r.get("tiada_kes") else len(r.get("kes_data",[]))
-                filtered_light.append(r_light)
-            
-            df = pd.DataFrame(filtered_light)
-            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes","jumlah_kes"]
+            df = pd.DataFrame(filtered)
+            # Show table
+            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes"]
             existing_cols = [c for c in display_cols if c in df.columns]
-            df_display = df[existing_cols].sort_values("tarikh", ascending=False) if "tarikh" in df.columns else df
-            
-            # PAGINATION 100 per page untuk laju
-            total_rows = len(df_display)
-            page_size = 100
-            total_pages = (total_rows + page_size -1)//page_size
-            if total_pages>1:
-                col_page1, col_page2 = st.columns([3,1])
-                with col_page1:
-                    page = st.slider(f"Halaman (Total {total_rows} laporan, {total_pages} halaman, 100 per halaman)", 1, total_pages, 1, key="page_senarai")
-                with col_page2:
-                    st.metric("Halaman", f"{page}/{total_pages}")
-                start_idx = (page-1)*page_size
-                end_idx = start_idx + page_size
-                df_page = df_display.iloc[start_idx:end_idx]
-            else:
-                df_page = df_display
-            
-            st.dataframe(df_page, use_container_width=True, height=400)
-            st.caption(f"Paparan {len(df_page)} dari {total_rows} laporan (Laju mode: tanpa signature & kes_data penuh)")
+            st.dataframe(df[existing_cols].sort_values("tarikh", ascending=False), use_container_width=True, height=400)
         
             # Download Excel
             output = BytesIO()
@@ -2014,6 +2070,69 @@ with col_content:
                     filtered_by_tarikh = available_reports
                     if sel_tarikh != "Semua Tarikh":
                         filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
+                    
+                    # ========== BULK DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) ==========
+                    if sel_tarikh != "Semua Tarikh" and len(filtered_by_tarikh)>0:
+                        st.markdown("---")
+                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh}")
+                        st.info(f"📅 {len(filtered_by_tarikh)} laporan pada {sel_tarikh} untuk PPD {sel_ppd} sedia untuk download pukal. Klik butang di bawah, sistem akan download ZIP berisi semua laporan PDF pada hari tersebut. Simpan ZIP di folder Desktop anda.")
+                        
+                        col_dl1, col_dl2 = st.columns([2,1])
+                        with col_dl1:
+                            if st.button(f"📦 Jana ZIP Pukal PDF ({len(filtered_by_tarikh)} laporan)", key=f"bulk_{sel_tarikh}_{sel_ppd}", type="primary", use_container_width=True):
+                                with st.spinner(f"Sedang jana {len(filtered_by_tarikh)} PDF untuk tarikh {sel_tarikh}..."):
+                                    zip_data, count = create_bulk_pdf_zip_by_date(available_reports, sel_tarikh)
+                                    if zip_data:
+                                        st.session_state[f"bulk_zip_{sel_tarikh}"] = zip_data
+                                        st.session_state[f"bulk_count_{sel_tarikh}"] = count
+                                        st.success(f"✅ {count} laporan berjaya dijana! Klik butang Download di sebelah.")
+                                    else:
+                                        st.error("Gagal jana ZIP")
+                        
+                        with col_dl2:
+                            zip_key = f"bulk_zip_{sel_tarikh}"
+                            if zip_key in st.session_state:
+                                st.download_button(
+                                    label=f"⬇️ Download ZIP ({st.session_state.get(f'bulk_count_{sel_tarikh}',0)} fail)",
+                                    data=st.session_state[zip_key],
+                                    file_name=f"BLPP_PUKAL_{sel_ppd}_{sel_tarikh}_{len(filtered_by_tarikh)}laporan.zip",
+                                    mime="application/zip",
+                                    key=f"download_zip_{sel_tarikh}",
+                                    use_container_width=True,
+                                    help="Simpan di Desktop anda - ZIP mengandungi semua PDF laporan hari tersebut"
+                                )
+                                st.caption("💡 Tip: Save ZIP di Desktop, extract, semua PDF ada dalam folder")
+                    elif sel_tarikh == "Semua Tarikh" and len(available_reports)>0:
+                        # Bulk download untuk semua tarikh dalam PPD tersebut (group by tarikh)
+                        st.markdown("---")
+                        st.markdown(f"### 📥 Download Pukal Ikut Tarikh - PPD {sel_ppd}")
+                        st.caption(f"Total {len(available_reports)} laporan. Pilih tarikh spesifik untuk download pukal, atau pilih tarikh di bawah untuk download semua tarikh tersebut.")
+                        
+                        # Show available dates with counts
+                        from collections import Counter
+                        tarikh_counts = Counter([r.get('tarikh','') for r in available_reports])
+                        for t, c in sorted(tarikh_counts.items(), reverse=True)[:10]:
+                            col_t1, col_t2, col_t3 = st.columns([2,1,1])
+                            with col_t1:
+                                st.write(f"📅 {t} - {c} laporan")
+                            with col_t2:
+                                if st.button(f"Jana ZIP", key=f"jana_{t}_{sel_ppd}"):
+                                    with st.spinner(f"Jana {c} PDF..."):
+                                        zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
+                                        if zip_data:
+                                            st.session_state[f"bulk_zip_{t}"] = zip_data
+                                            st.session_state[f"bulk_count_{t}"] = count
+                                            st.success(f"✅ {count} laporan {t} sedia!")
+                            with col_t3:
+                                zk = f"bulk_zip_{t}"
+                                if zk in st.session_state:
+                                    st.download_button(
+                                        label=f"⬇️ ZIP {c} fail",
+                                        data=st.session_state[zk],
+                                        file_name=f"BLPP_PUKAL_{sel_ppd}_{t}_{c}laporan.zip",
+                                        mime="application/zip",
+                                        key=f"dl_{t}_{sel_ppd}"
+                                    )
                     
                     # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
                     pusat_map = {}
@@ -2313,43 +2432,8 @@ with col_content:
                 with col4:
                     st.metric("Ada Kes", ada_kes)
             
-                st.markdown("#### Laporan Ikut PPD (10 PPD) - Laju Mode (cache)")
-                # Cache PPD stats untuk laju
-                @st.cache_data(ttl=60, show_spinner=False)
-                def get_ppd_stats_cached(reports_mtime):
-                    # Guna index precompute
-                    stats = []
-                    # Build index sekali
-                    ppd_index = {}
-                    for r in reports:
-                        ppd = str(r.get("ppd","")).strip()
-                        kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).upper()
-                        # Robust mapping
-                        if kod == "BK":
-                            ppd = "Petaling Utama"
-                        elif kod == "BH" and ppd in ["", "BK"]:
-                            ppd = "Petaling Perdana"
-                        ppd_index[ppd] = ppd_index.get(ppd, 0) + 1
-                    for ppd in PPD_LIST:
-                        kod = PPD_TO_KOD.get(ppd, "")
-                        count = ppd_index.get(ppd, 0)
-                        # Also count via kod if not found
-                        if count==0 and kod:
-                            for r in reports:
-                                r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).upper()
-                                if r_kod == kod:
-                                    count+=1
-                                elif ppd=="Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
-                                    count+=1
-                        stats.append({"PPD": ppd, "Laporan": count, "Kod": kod})
-                    return stats
-                
-                try:
-                    mtime_reports = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
-                except:
-                    mtime_reports = 0
-                ppd_stats_cached = get_ppd_stats_cached(mtime_reports)
-                ppd_stats = ppd_stats_cached
+                st.markdown("#### Laporan Ikut PPD (10 PPD)")
+                ppd_stats = []
                 for ppd in PPD_LIST:
                     kod = PPD_TO_KOD.get(ppd, "")
                     def match_count(r):
