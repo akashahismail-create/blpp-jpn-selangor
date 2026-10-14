@@ -1013,89 +1013,113 @@ if not st.session_state.login:
     st.markdown('''
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
-    .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%); }
+    .stApp { background: #f1f5f9 !important; }
+    .main .block-container { background: #f1f5f9; }
     .header-hero {
-        background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
-        backdrop-filter: blur(20px);
-        border: 1px solid rgba(255,255,255,0.1);
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #2563eb 100%) !important;
+        border: 2px solid #1e40af;
         border-radius: 20px;
         padding: 32px 24px;
         text-align: center;
         margin-bottom: 24px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        box-shadow: 0 10px 40px rgba(30,58,138,0.4);
+    }
+    .header-hero h1 {
+        color: #ffffff !important;
+        text-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
+        font-weight: 900 !important;
+    }
+    .header-hero p {
+        color: #dbeafe !important;
     }
     .login-card {
-        background: rgba(255,255,255,0.98);
+        background: #ffffff !important;
         border-radius: 20px;
         padding: 28px;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
-        border: none;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 0 0 1px #e2e8f0;
+        border: 2px solid #e2e8f0;
     }
     .role-badge {
         display: inline-block;
-        padding: 6px 14px;
+        padding: 8px 14px;
         border-radius: 20px;
         font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.5px;
+        font-weight: 800;
+        letter-spacing: 0.3px;
         margin: 4px;
+        border: 1px solid;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
-    .badge-kp { background: #dbeafe; color: #1e40af; }
-    .badge-ppd { background: #dcfce7; color: #166534; }
-    .badge-jpn { background: #fef3c7; color: #92400e; }
-    .badge-lp { background: #fce7f3; color: #9d174d; }
+    .badge-kp { background: #eff6ff !important; color: #1d4ed8 !important; border-color: #3b82f6 !important; }
+    .badge-ppd { background: #f0fdf4 !important; color: #15803d !important; border-color: #22c55e !important; }
+    .badge-jpn { background: #fefce8 !important; color: #a16207 !important; border-color: #eab308 !important; }
+    .badge-lp { background: #fdf2f8 !important; color: #be185d !important; border-color: #ec4899 !important; }
     .feature-box {
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.1);
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
         border-radius: 14px;
         padding: 16px;
         text-align: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
     }
+    .feature-box div { color: #0f172a !important; }
     div[data-testid="stSelectbox"] > div > div { 
         border-radius: 12px !important; 
-        border: 2px solid #e2e8f0 !important;
-        font-weight: 600;
+        border: 2px solid #334155 !important;
+        font-weight: 700 !important;
+        background: white !important;
+        color: #0f172a !important;
     }
     div[data-testid="stTextInput"] > div > div > input {
         border-radius: 12px !important;
-        border: 2px solid #e2e8f0 !important;
+        border: 2px solid #334155 !important;
         padding: 14px !important;
+        background: white !important;
+        color: #0f172a !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stTextInput"] label, div[data-testid="stSelectbox"] label {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+        font-size: 14px !important;
     }
     .stButton > button {
         border-radius: 12px !important;
         padding: 14px !important;
-        font-weight: 700 !important;
+        font-weight: 800 !important;
         font-size: 15px !important;
-        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
         border: none !important;
-        box-shadow: 0 4px 14px rgba(239,68,68,0.4) !important;
-        letter-spacing: 0.3px;
+        box-shadow: 0 4px 14px rgba(220,38,38,0.4) !important;
+        letter-spacing: 0.5px;
+        color: white !important;
     }
     .stButton > button:hover {
-        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-        box-shadow: 0 6px 20px rgba(239,68,68,0.5) !important;
+        background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%) !important;
+        box-shadow: 0 6px 20px rgba(220,38,38,0.5) !important;
         transform: translateY(-1px);
     }
     </style>
     ''', unsafe_allow_html=True)
     
-    # Hero Header Menarik
+    # Hero Header Menarik - HIGH CONTRAST FIX KASHAH
     st.markdown('''
     <div class="header-hero">
-        <div style="font-size:48px; margin-bottom:12px;">📋</div>
-        <h1 style="font-size:28px; font-weight:800; color:white; margin:0; letter-spacing:0.5px; font-family:Inter; text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+        <div style="font-size:52px; margin-bottom:12px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));">📋</div>
+        <h1 style="font-size:30px; font-weight:900; color:#ffffff; margin:0; letter-spacing:0.8px; font-family:Inter; text-shadow:0 3px 12px rgba(0,0,0,0.6); line-height:1.2;">
             SISTEM LAPORAN PUSAT PEPERIKSAAN
         </h1>
-        <p style="font-size:15px; color:#bfdbfe; margin:10px 0 0 0; font-weight:500;">
-            Sektor Pentaksiran dan Peperiksaan<br>Jabatan Pendidikan Negeri Selangor
+        <p style="font-size:16px; color:#dbeafe; margin:12px 0 0 0; font-weight:600; text-shadow:0 1px 4px rgba(0,0,0,0.4);">
+            Sektor Pentaksiran dan Peperiksaan<br>
+            <span style="color:#ffffff; font-weight:700;">Jabatan Pendidikan Negeri Selangor</span>
         </p>
-        <div style="margin-top:18px; display:flex; justify-content:center; flex-wrap:wrap; gap:6px;">
+        <div style="margin-top:20px; display:flex; justify-content:center; flex-wrap:wrap; gap:8px;">
             <span class="role-badge badge-kp">KP • KETUA PENGAWAS</span>
             <span class="role-badge badge-ppd">PPD • PEJABAT PENDIDIKAN DAERAH</span>
             <span class="role-badge badge-jpn">JPN • JABATAN PENDIDIKAN NEGERI</span>
             <span class="role-badge badge-lp">LP • LEMBAGA PEPERIKSAAN</span>
         </div>
-        <div style="margin-top:16px; font-size:12px; color:#fbbf24; font-weight:700; letter-spacing:1px;">
+        <div style="margin-top:18px; font-size:13px; color:#fde047; font-weight:800; letter-spacing:0.8px; background:rgba(0,0,0,0.25); padding:8px 16px; border-radius:20px; display:inline-block; border:1px solid rgba(253,224,71,0.3);">
             ✨ BLPP LP/Am 90 Pin. 1/2023 | SPM • UJIAN AMALI SAINS ✨
         </div>
     </div>
