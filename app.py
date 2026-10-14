@@ -340,7 +340,7 @@ def load_users():
                 "telefon": ""
             })
     else:
-        # Fallback 504 ikut mapping BA-BK
+        # Fallback 504 ikut mapping BA-BK - FIX BUG Petaling Utama
         for i in range(1, 505):
             ppd = PPD_LIST[(i-1) % 10]
             kod = list(KOD_PPD_MAPPING.keys())[(i-1) // 60 % len(KOD_PPD_MAPPING)]
@@ -360,11 +360,12 @@ def load_users():
                 "id": uid,
                 "nama": f"KP {uid} - {nama_pusat[:30]}",
                 "peranan": "KP",
-                "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
+                "ppd": ppd,  # FIX: Guna ppd variable, bukan user["ppd"] - bug lama sebab user tak wujud
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
                 "password": uid.lower(),
-                "telefon": ""
+                "telefon": "",
+                "kod_ppd": kod
             })
 
     # Legacy BH562 / BC001 tetap boleh login
@@ -1779,7 +1780,22 @@ with col_content:
 
         filtered = reports
         if peranan_user == "PPD":
-            filtered = [r for r in filtered if r.get("ppd")==user["ppd"]]
+            # FIX robust Petaling Utama
+            user_ppd = user["ppd"]
+            user_kod = user.get("kod_ppd","")
+            def match_ppd_filter(r):
+                r_ppd = str(r.get("ppd","")).strip()
+                r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                if r_ppd == user_ppd:
+                    return True
+                if user_kod and r_kod == user_kod.upper():
+                    return True
+                if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                    return True
+                if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
+                    return True
+                return False
+            filtered = [r for r in filtered if match_ppd_filter(r)]
         elif peranan_user == "KP":
             filtered = [r for r in filtered if r.get("id_kp")==user["id"]]
     
@@ -1839,12 +1855,33 @@ with col_content:
         
             # LANGKAH 1: PILIH DAERAH/PPD - BUANG UNTUK PPD (KASHAH REQUEST)
             if peranan_user == "PPD":
-                # PPD dah login ikut PPD dia - tak perlu pilih daerah lagi
+                # PPD dah login ikut PPD dia - tak perlu pilih daerah lagi - FIX robust matching
                 sel_ppd = user["ppd"]
-                st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD Anda: {sel_ppd} ({user.get('kod_ppd','')})</b> - Auto papar laporan PPD {sel_ppd} sahaja (tak perlu pilih daerah)</div>", unsafe_allow_html=True)
-                # Filter terus ikut PPD login
-                available_reports = [r for r in reports if r.get("ppd")==sel_ppd]
+                kod_ppd_user = user.get("kod_ppd","")
+                st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD Anda: {sel_ppd} ({kod_ppd_user})</b> - Auto papar laporan PPD {sel_ppd} sahaja</div>", unsafe_allow_html=True)
+                # FIX: Filter robust - match ppd name ATAU kod_ppd (untuk cover bug lama Petaling Utama)
+                def match_ppd(r):
+                    r_ppd = str(r.get("ppd","")).strip()
+                    r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                    user_ppd = str(sel_ppd).strip()
+                    user_kod = str(kod_ppd_user).strip().upper()
+                    # Match by nama PPD
+                    if r_ppd == user_ppd:
+                        return True
+                    # Match by kod PPD (BK = Petaling Utama)
+                    if user_kod and r_kod == user_kod:
+                        return True
+                    # Match Petaling Utama case - check if no_pusat starts with BK
+                    if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                        return True
+                    if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
+                        return True
+                    return False
+                
+                available_reports = [r for r in reports if match_ppd(r)]
                 st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
+                if len(available_reports)==0 and len(reports)>0:
+                    st.warning(f"⚠️ Tiada laporan untuk {sel_ppd}. Debug: Total {len(reports)} laporan, PPD dalam sistem: {list(set([r.get('ppd','') for r in reports]))[:5]}")
             else:
                 # JPN/LP/Admin masih perlu pilih PPD
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
