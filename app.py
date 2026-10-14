@@ -405,9 +405,9 @@ def jana_blpp_html(report):
         .arahan {{ width:100%; font-size:8.2pt; text-align:left; line-height:1.35; box-sizing:border-box; }}
         .arahan ol {{ margin:0; padding-left:18px; }}
         table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
-        th, td { word-wrap:break-word; white-space:pre-wrap; word-break:break-word; border:1.2px solid #000; padding:4px 5px; font-size:9pt; }
-        th { text-align:center; font-weight:bold; vertical-align:middle; }
-        td { text-align:center; vertical-align:middle; }
+        th, td {{ word-wrap:break-word; white-space:pre-wrap; word-break:break-word; border:1.2px solid #000; padding:4px 5px; font-size:9pt; }}
+        th {{ text-align:center; font-weight:bold; vertical-align:middle; }}
+        td {{ text-align:center; vertical-align:middle; }}
         .footer {{ display:flex; justify-content:space-between; margin-top:26px; font-size:9pt; }}
     </style></head><body>
     <div class="page">
