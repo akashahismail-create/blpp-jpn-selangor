@@ -382,13 +382,13 @@ def jana_blpp_html(report):
     if tiada_kes or not kes_data:
         kes_rows = ""
         for _ in range(5):
-            kes_rows += "<tr><td style='height:62px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
+            kes_rows += "<tr><td style='height:auto; min-height:20px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
-            kes_rows += f"<tr><td style='height:auto; min-height:32px; word-wrap:break-word; white-space:pre-wrap;'>{i}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('angka_giliran','')}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('no_ic','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('kes','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('tindakan','')}</td></tr>"
+            kes_rows += f"<tr><td style='height:auto; min-min-height:32px; height:auto; word-wrap:break-word; white-space:pre-wrap;'>{i}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('angka_giliran','')}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('no_ic','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('kes','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('tindakan','')}</td></tr>"
         for _ in range(max(0, 5 - len(kes_data))):
-            kes_rows += "<tr><td style='height:32px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
+            kes_rows += "<tr><td style='min-height:32px; height:auto;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
 
     html = f"""
     <!DOCTYPE html><html><head><meta charset="utf-8">
@@ -607,12 +607,55 @@ def jana_blpp_pdf(report):
         pdf.set_xy(x4, y2)
         pdf.cell(wb5, h2_header, "TINDAKAN", border=1, align="C")
 
-        # Kotak besar kosong - 5 baris, tinggi 62mm ikut template
-        # FIX MERAH: Guna x positions yang sama dengan header, baru garisan atas-bawah sama
-        big_h = 62
+        # ===== FLEXIBLE BOX - Kotak auto panjang ikut tulisan (FIX terkeluar kotak) =====
         y_body = y2 + h2_header
-        # Jika tiada kes, semua kosong macam template asal - guna x exact
+        
+        def get_wrapped_lines(pdf_obj, text, col_width):
+            # Kira berapa baris sebenar bila wrap ikut lebar column - accurate
+            if not text:
+                return [""]
+            lines = []
+            # Split by manual newlines first
+            for para in str(text).split("\n"):
+                para = para.strip()
+                if not para:
+                    lines.append("")
+                    continue
+                words = para.split()
+                cur_line = ""
+                for w in words:
+                    test = cur_line + " " + w if cur_line else w
+                    if pdf_obj.get_string_width(test) < col_width - 3:
+                        cur_line = test
+                    else:
+                        if cur_line:
+                            lines.append(cur_line)
+                        # Jika satu perkataan panjang sangat, potong
+                        if pdf_obj.get_string_width(w) >= col_width - 3:
+                            # potong perkataan panjang
+                            temp = w
+                            while temp:
+                                for i in range(len(temp), 0, -1):
+                                    if pdf_obj.get_string_width(temp[:i]) < col_width - 3:
+                                        lines.append(temp[:i])
+                                        temp = temp[i:]
+                                        break
+                                else:
+                                    lines.append(temp)
+                                    break
+                            cur_line = ""
+                        else:
+                            cur_line = w
+                if cur_line:
+                    lines.append(cur_line)
+            return lines if lines else [""]
+
+        def calc_text_height(pdf_obj, text, col_width, line_h=4):
+            lines = get_wrapped_lines(pdf_obj, text, col_width-2)
+            return max(8, len(lines) * line_h + 4)
+        
         if tiada or not kes_data:
+            big_h = 62
             pdf.set_xy(x0, y_body)
             pdf.cell(wb1, big_h, "", border=1)
             pdf.set_xy(x1, y_body)
@@ -623,72 +666,99 @@ def jana_blpp_pdf(report):
             pdf.cell(wb4, big_h, "", border=1)
             pdf.set_xy(x4, y_body)
             pdf.cell(wb5, big_h, "", border=1)
+            total_table_h = big_h
         else:
-            # Ada kes - tulis data - kotak kosong dulu guna x exact
-            pdf.set_xy(x0, y_body)
-            pdf.cell(wb1, big_h, "", border=1)
-            pdf.set_xy(x1, y_body)
-            pdf.cell(wb2, big_h, "", border=1)
-            pdf.set_xy(x2, y_body)
-            pdf.cell(wb3, big_h, "", border=1)
-            pdf.set_xy(x3_b, y_body)
-            pdf.cell(wb4, big_h, "", border=1)
-            pdf.set_xy(x4, y_body)
-            pdf.cell(wb5, big_h, "", border=1)
-            pdf.set_font("Helvetica", "", 7)
-            # FIX BERTINDIH: Guna multi_cell dengan wrap, bukan cell 6mm potong 50 huruf
-            row_y = y_body + 1
-            max_rows_height = big_h - 2
-            for idx, k in enumerate(kes_data):
-                if row_y > y_body + max_rows_height - 5:
-                    break
-                # Hitung tinggi baris berdasarkan panjang KES & TINDAKAN
+            # ADA KES - Lukis kotak flexible ikut panjang tulisan
+            row_y = y_body
+            total_table_h = 0
+            row_heights = []
+            
+            # First pass: kira tinggi setiap baris dengan accurate wrap
+            for k in kes_data:
                 kes_text = str(k.get('kes','')).strip()
                 tind_text = str(k.get('tindakan','')).strip()
-                # Estimasi tinggi: setiap 45 char ~ 1 baris 5mm
-                kes_lines = max(1, (len(kes_text) // 45) + 1)
-                tind_lines = max(1, (len(tind_text) // 45) + 1)
-                lines_needed = max(kes_lines, tind_lines, 1)
-                row_h = max(7, lines_needed * 5)  # min 7mm
+                h_kes = calc_text_height(pdf, kes_text, wb4-2, 4)
+                h_tind = calc_text_height(pdf, tind_text, wb5-2, 4)
+                row_h = max(14, h_kes, h_tind, 14)
+                row_heights.append(row_h)
+                total_table_h += row_h
+            
+            # Pastikan min 62mm macam template asal
+            if total_table_h < 62:
+                total_table_h = 62
+            
+            # Second pass: lukis setiap baris dengan border flexible
+            row_y = y_body
+            for idx, k in enumerate(kes_data):
+                kes_text = str(k.get('kes','')).strip()
+                tind_text = str(k.get('tindakan','')).strip()
+                pre_row_h = row_heights[idx]
                 
-                # Simpan y untuk kotak
-                curr_y = row_y
+                # Lukis dulu border sementara dengan pre height
+                pdf.set_line_width(0.35)
+                # Simpan Y
+                start_y = row_y
                 
-                # BIL
-                pdf.set_xy(x0, curr_y)
-                pdf.cell(wb1, row_h, str(idx+1), border=0, align="C")
-                # ANGKA GILIRAN
-                pdf.set_xy(x1, curr_y)
-                pdf.cell(wb2, row_h, str(k.get('angka_giliran',''))[:20], border=0, align="C")
-                # NO IC
-                pdf.set_xy(x2, curr_y)
-                pdf.cell(wb3, row_h, str(k.get('no_ic',''))[:20], border=0, align="C")
+                # Isi data - untuk kira actual height
+                pdf.set_font("Helvetica", "", 7)
                 
-                # KES - guna multi_cell wrap
-                pdf.set_xy(x3_b, curr_y)
-                pdf.multi_cell(wb4, 5, kes_text, border=0, align="L")
-                kes_h = pdf.get_y() - curr_y
+                # BIL, AG, IC - tulis terus
+                pdf.set_xy(x0, start_y+1)
+                pdf.cell(wb1, 5, str(idx+1), align="C")
+                pdf.set_xy(x1, start_y+1)
+                pdf.cell(wb2, 5, str(k.get('angka_giliran',''))[:20], align="C")
+                pdf.set_xy(x2, start_y+1)
+                pdf.cell(wb3, 5, str(k.get('no_ic',''))[:20], align="C")
                 
-                # TINDAKAN - guna multi_cell wrap
-                pdf.set_xy(x4, curr_y)
-                pdf.multi_cell(wb5, 5, tind_text, border=0, align="L")
-                tind_h = pdf.get_y() - curr_y
+                # KES
+                pdf.set_xy(x3_b+1, start_y+1)
+                y_before_kes = pdf.get_y()
+                pdf.multi_cell(wb4-2, 4, kes_text, align="L")
+                y_after_kes = pdf.get_y()
                 
-                # Guna tinggi terbesar
-                actual_h = max(row_h, kes_h, tind_h, 7)
+                # TINDAKAN
+                pdf.set_xy(x4+1, start_y+1)
+                y_before_tind = pdf.get_y()
+                pdf.multi_cell(wb5-2, 4, tind_text, align="L")
+                y_after_tind = pdf.get_y()
                 
-                # Lukis garisan grid untuk baris ini
-                # Vertical lines sudah ada dari kotak besar, tapi kita lukis horizontal separator
-                pdf.line(x0, curr_y + actual_h, x5, curr_y + actual_h)
+                # Actual height used
+                actual_h = max(pre_row_h, y_after_kes - start_y, y_after_tind - start_y, 14)
+                actual_h = max(actual_h, 14) + 2  # padding
                 
-                row_y += actual_h
+                # Sekarang lukis border dengan actual height (overwrite)
+                pdf.rect(x0, start_y, wb1, actual_h)
+                pdf.rect(x1, start_y, wb2, actual_h)
+                pdf.rect(x2, start_y, wb3, actual_h)
+                pdf.rect(x3_b, start_y, wb4, actual_h)
+                pdf.rect(x4, start_y, wb5, actual_h)
                 
-                # Jika row_y melebihi kotak, stop
-                if row_y > y_body + big_h:
-                    break
+                row_y = start_y + actual_h
+            
+            # Jika jumlah tinggi < 62mm, tambah kotak kosong di bawah untuk cukupkan 62mm macam template
+            if total_table_h < 62 or len(kes_data) < 5:
+                remaining = 62 - total_table_h if total_table_h < 62 else (5 - len(kes_data)) * 12
+                if remaining > 0:
+                    # Tambah kotak kosong
+                    for i in range(max(1, int(remaining // 12))):
+                        if row_y > y_body + 200:  # elak terlalu panjang
+                            break
+                        pdf.rect(x0, row_y, wb1, 12)
+                        pdf.rect(x1, row_y, wb2, 12)
+                        pdf.rect(x2, row_y, wb3, 12)
+                        pdf.rect(x3_b, row_y, wb4, 12)
+                        pdf.rect(x4, row_y, wb5, 12)
+                        row_y += 12
+                    total_table_h = row_y - y_body
 
-        # Footer - Pelapor / Pengesahan
-        yf = y_body + big_h + 6
+        # Footer - guna row_y yang sebenar selepas lukis (flexible)
+        try:
+            yf = row_y + 8
+        except:
+            try:
+                yf = y_body + total_table_h + 6
+            except:
+                yf = y_body + 62 + 6
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(10, yf)
         pdf.cell(60, 5, "Pelapor:")
