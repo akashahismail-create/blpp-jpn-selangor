@@ -683,9 +683,8 @@ def jana_blpp_pdf(report):
                 row_heights.append(row_h)
                 total_table_h += row_h
             
-            # Pastikan min 62mm macam template asal
-            if total_table_h < 62:
-                total_table_h = 62
+            # Jangan paksa 62mm kalau 1 kes sahaja - biar flexible (request Kashah)
+            # total_table_h kekal ikut panjang sebenar
             
             # Second pass: lukis setiap baris dengan border flexible + auto page break
             row_y = y_body
@@ -758,21 +757,10 @@ def jana_blpp_pdf(report):
                 
                 row_y = start_y + actual_h
             
-            # Jika jumlah tinggi < 62mm, tambah kotak kosong di bawah untuk cukupkan 62mm macam template
-            if total_table_h < 62 or len(kes_data) < 5:
-                remaining = 62 - total_table_h if total_table_h < 62 else (5 - len(kes_data)) * 12
-                if remaining > 0:
-                    # Tambah kotak kosong
-                    for i in range(max(1, int(remaining // 12))):
-                        if row_y > y_body + 200:  # elak terlalu panjang
-                            break
-                        pdf.rect(x0, row_y, wb1, 12)
-                        pdf.rect(x1, row_y, wb2, 12)
-                        pdf.rect(x2, row_y, wb3, 12)
-                        pdf.rect(x3_b, row_y, wb4, 12)
-                        pdf.rect(x4, row_y, wb5, 12)
-                        row_y += 12
-                    total_table_h = row_y - y_body
+            # FIX: Kalau 1 kes sahaja, tak perlu tambah 5 kotak kosong - biar 1 baris sahaja (request Kashah)
+            # Hanya tambah kosong jika tiada kes langsung
+            # Kalau ada 1 kes, terus guna tinggi sebenar sahaja - tak perlu isi kosong
+            # total_table_h sudah dikira dari row_heights, kekalkan
 
         # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
         # Jika row_y dah dekat bawah page, pindah footer ke page baru
