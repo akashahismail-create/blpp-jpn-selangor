@@ -1187,17 +1187,7 @@ if not st.session_state.login:
             else:
                 st.error("❌ ID atau Kata Laluan salah. Sila semak peranan dan cuba lagi.")
         
-        st.markdown('''
-        <div style="margin-top:20px; padding:14px; background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius:12px; border:1px solid #bae6fd;">
-            <div style="font-size:11px; font-weight:700; color:#0369a1; margin-bottom:8px;">💡 PANDUAN LOG MASUK:</div>
-            <div style="font-size:11px; color:#075985; line-height:1.6;">
-                <b>KP:</b> ID No Pusat anda (cth: BH562) • Password sama dengan ID<br>
-                <b>PPD:</b> Kod PPD (BA= Klang, BB=Kuala Langat...) • Password kod kecil (ba)<br>
-                <b>JPN:</b> ID JPN • Password 2026<br>
-                <b>LP:</b> ID LP • Password 2026
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        # PANDUAN DIBUANG IKUT REQUEST KASHAH
         
         st.markdown('</div>', unsafe_allow_html=True)
         
