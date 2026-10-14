@@ -514,10 +514,9 @@ def jana_blpp_html(report):
         pep_line = "PEPERIKSAAN ........................................ TAHUN ........................................"
     
     if tiada_kes or not kes_data:
-        # FIX 1 MUKA: TIADA KES cuma 1 baris, bukan 5 baris kosong -> jadi 2 muka
-        kes_rows = "<tr><td style='height:32px; text-align:center;'>1</td><td colspan='4' style='text-align:center; font-weight:bold; font-size:11pt; height:32px;'>TIADA KES LUAR DUGAAN - TIADA KES PADA HARI INI</td></tr>"
-        for _ in range(1):
-            kes_rows += "<tr><td style='height:20px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
+        kes_rows = ""
+        for _ in range(5):
+            kes_rows += "<tr><td style='height:auto; min-height:20px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
@@ -867,19 +866,17 @@ def jana_blpp_pdf(report):
             return max(8, len(lines) * line_h + 4)
         
         if tiada or not kes_data:
-            # FIX 1 MUKA: TIADA KES jangan 62mm tinggi, 28mm je cukup -> elak jadi 2 muka
-            big_h = 28
-            # Kotak kosong
+            big_h = 62
             pdf.set_xy(x0, y_body)
-            pdf.cell(wb1, big_h, "1", border=1, align="C")
+            pdf.cell(wb1, big_h, "", border=1)
             pdf.set_xy(x1, y_body)
             pdf.cell(wb2, big_h, "", border=1)
             pdf.set_xy(x2, y_body)
             pdf.cell(wb3, big_h, "", border=1)
-            # Tulis TIADA KES di tengah gabung 2 kolom terakhir
-            pdf.set_font("Helvetica", "B", 11)
             pdf.set_xy(x3_b, y_body)
-            pdf.cell(wb4+wb5, big_h, "TIADA KES LUAR DUGAAN - TIADA KES PADA HARI INI", border=1, align="C")
+            pdf.cell(wb4, big_h, "", border=1)
+            pdf.set_xy(x4, y_body)
+            pdf.cell(wb5, big_h, "", border=1)
             total_table_h = big_h
         else:
             # ADA KES - Lukis kotak flexible ikut panjang tulisan
@@ -1063,11 +1060,19 @@ def jana_blpp_pdf(report):
 
         # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
         # Jika row_y dah dekat bawah page, pindah footer ke page baru
+        # FIX 1 MUKA TIADA KES: jangan guna 62 untuk tiada kes, guna big_h atau total_table_h
         page_limit = 185  # A4 landscape usable height ~ 190mm
         try:
             curr_bottom = row_y
         except:
-            curr_bottom = y_body + 62
+            # Jika tiada kes, row_y tak wujud - guna total_table_h atau big_h
+            try:
+                curr_bottom = y_body + total_table_h
+            except:
+                try:
+                    curr_bottom = y_body + big_h
+                except:
+                    curr_bottom = y_body + 28  # TIADA KES cuma 28mm, bukan 62
         
         if curr_bottom + 35 > page_limit:
             pdf.add_page()
