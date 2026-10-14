@@ -1210,51 +1210,55 @@ with col_content:
             
 
         
-            # Form BLPP sebenar - RINGKAS, header panjang dibuang ikut request Kashah
+            # Form BLPP sebenar - RINGKAS - FIX KASHAH: Peperiksaan & Sidang diluar form supaya dynamic
             st.markdown("---")
+            st.markdown("#### 📝 Maklumat Peperiksaan (Pilih dulu sebelum isi kes)")
+            
+            colA, colB, colC = st.columns(3)
+            with colA:
+                try:
+                    amali_idx = PEPERIKSAAN_LIST.index("Ujian Amali Sains SPM")
+                except:
+                    amali_idx = 2 if len(PEPERIKSAAN_LIST) > 2 else 0
+                # Simpan peperiksaan dalam session_state supaya dynamic sidang berfungsi
+                if 'selected_peperiksaan' not in st.session_state:
+                    st.session_state.selected_peperiksaan = PEPERIKSAAN_LIST[0 if exam_mode=="SPM" else amali_idx]
+                
+                peperiksaan = st.selectbox("Peperiksaan", PEPERIKSAAN_LIST, index=PEPERIKSAAN_LIST.index(st.session_state.selected_peperiksaan) if st.session_state.selected_peperiksaan in PEPERIKSAAN_LIST else 0, key="peperiksaan_select")
+                st.session_state.selected_peperiksaan = peperiksaan
+                tahun = st.text_input("Tahun", value="2026")
+                no_pusat = st.text_input("No. Pusat (Auto dari Data)", value=auto_no_pusat, disabled=False)
+            with colB:
+                nama_pusat = st.text_input("Nama Pusat Peperiksaan (Auto)", value=selected_sekolah)
+                ppd = st.text_input("PPD / Daerah (Auto - Locked to PPD Anda)", value=user["ppd"], disabled=True, help="PPD auto ikut login anda, tidak boleh tukar untuk pastikan laporan masuk ke PPD anda")
+                kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
+            with colC:
+                tarikh = st.date_input("Tarikh Laporan", value=date.today())
+                # FIX KASHAH: Sidang ikut jenis peperiksaan - SEKARANG DILUAR FORM JADI DYNAMIC
+                if "Amali" in peperiksaan:
+                    # Amali Sains - 4 sidang, 8pg-1tgh sahaja, tulis sidang berapa sahaja
+                    sidang_options = [
+                        "Sidang 1",
+                        "Sidang 2", 
+                        "Sidang 3",
+                        "Sidang 4"
+                    ]
+                    sidang_help = "Amali Sains: 4 sidang, semua dari 8 pagi hingga 1 tengah hari - tulis sidang berapa sahaja"
+                else:
+                    # SPM I - 3 sidang dengan masa betul
+                    sidang_options = [
+                        "Sidang 1 (8.00 - 10.00 pagi)",
+                        "Sidang 2 (10.00 pagi - 1.00 tengah hari)",
+                        "Sidang 3 (2.00 - 5.00 petang)"
+                    ]
+                    sidang_help = "SPM: Sidang 1=8-10pg, Sidang 2=10pg-1tgh, Sidang 3=2-5ptg"
+                
+                sidang = st.selectbox("Sidang", sidang_options, help=sidang_help)
+                nama_kp = st.text_input("Nama KP", value="")
+                st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
         
+            # Form untuk kes sahaja (bukan peperiksaan info)
             with st.form("blpp_form", clear_on_submit=False):
-                colA, colB, colC = st.columns(3)
-                with colA:
-                    # FIX: Cari index Ujian Amali Sains secara dynamic, bukan hardcode 4
-                    try:
-                        amali_idx = PEPERIKSAAN_LIST.index("Ujian Amali Sains SPM")
-                    except:
-                        amali_idx = 2 if len(PEPERIKSAAN_LIST) > 2 else 0
-                    peperiksaan = st.selectbox("Peperiksaan", PEPERIKSAAN_LIST, index=0 if exam_mode=="SPM" else amali_idx)
-                    tahun = st.text_input("Tahun", value="2026")
-                    no_pusat = st.text_input("No. Pusat (Auto dari Data)", value=auto_no_pusat, disabled=False)
-                with colB:
-                    nama_pusat = st.text_input("Nama Pusat Peperiksaan (Auto)", value=selected_sekolah)
-                    ppd = st.text_input("PPD / Daerah (Auto - Locked to PPD Anda)", value=user["ppd"], disabled=True, help="PPD auto ikut login anda, tidak boleh tukar untuk pastikan laporan masuk ke PPD anda")
-                    kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
-                with colC:
-                    tarikh = st.date_input("Tarikh Laporan", value=date.today())
-                    # FIX KASHAH: Sidang ikut jenis peperiksaan
-                    # SPM I: 3 sidang - 8-10pg, 10pg-1tgh, 2-5ptg
-                    # Amali Sains: 4 sidang - semua 8pg-1tgh
-                    if "Amali" in peperiksaan or exam_mode == "Amali":
-                        # Amali Sains - 4 sidang, 8pg-1tgh sahaja, tulis sidang berapa sahaja
-                        sidang_options = [
-                            "Sidang 1",
-                            "Sidang 2", 
-                            "Sidang 3",
-                            "Sidang 4"
-                        ]
-                        sidang_help = "Amali Sains: 4 sidang, semua dari 8 pagi hingga 1 tengah hari"
-                    else:
-                        # SPM I - 3 sidang dengan masa betul
-                        sidang_options = [
-                            "Sidang 1 (8.00 - 10.00 pagi)",
-                            "Sidang 2 (10.00 pagi - 1.00 tengah hari)",
-                            "Sidang 3 (2.00 - 5.00 petang)"
-                        ]
-                        sidang_help = "SPM: Sidang 1=8-10pg, Sidang 2=10pg-1tgh, Sidang 3=2-5ptg"
-                    
-                    sidang = st.selectbox("Sidang", sidang_options, help=sidang_help)
-                    nama_kp = st.text_input("Nama KP", value="")
-                    # Simpan exam_mode untuk backend
-                    st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
 
             
                 st.markdown("---")
