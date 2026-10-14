@@ -602,6 +602,70 @@ def jana_blpp_html(report):
     """
     return html
 
+# ========== FUNGSI DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) - FIX NAMEERROR ==========
+def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
+    """Create ZIP containing PDFs with LOGO for all reports on selected date"""
+    import zipfile
+    from io import BytesIO
+    
+    filtered = [r for r in reports if r.get('tarikh') == tarikh_selected]
+    if not filtered:
+        return None, 0
+    
+    zip_buffer = BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for r in filtered:
+            no_pusat = r.get('no_pusat','UNKNOWN')
+            nama_pusat = r.get('nama_pusat','')[:20]
+            ppd = r.get('ppd','')
+            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in nama_pusat)
+            base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}_{ppd}"
+            
+            try:
+                pdf_data = jana_blpp_pdf(r)
+                if isinstance(pdf_data, BytesIO):
+                    pdf_bytes = pdf_data.getvalue()
+                elif isinstance(pdf_data, (bytes, bytearray)):
+                    pdf_bytes = pdf_data
+                else:
+                    # Fallback: if jana_blpp_pdf returns something else, try get bytes
+                    pdf_bytes = bytes(pdf_data) if pdf_data else None
+                    if not pdf_bytes:
+                        raise ValueError("PDF empty")
+                
+                zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
+                
+            except Exception as e:
+                try:
+                    html_content = jana_blpp_html(r)
+                    zip_file.writestr(f"{base_filename}.html", html_content)
+                except Exception as e2:
+                    zip_file.writestr(f"{base_filename}_ERROR.txt", f"Gagal: {str(e)} / {str(e2)}")
+        
+        # Add summary CSV
+        try:
+            import pandas as pd
+            df_summary = pd.DataFrame([{
+                'Tarikh': r.get('tarikh',''),
+                'No Pusat': r.get('no_pusat',''),
+                'Nama Pusat': r.get('nama_pusat',''),
+                'PPD': r.get('ppd',''),
+                'Peperiksaan': r.get('peperiksaan',''),
+                'Nama KP': r.get('nama_kp',''),
+                'Status': 'TIADA KES' if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES",
+                'ID': r.get('id','')
+            } for r in filtered])
+            csv_buffer = BytesIO()
+            df_summary.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
+            zip_file.writestr(f"RINGKASAN_{tarikh_selected}.csv", csv_buffer.getvalue())
+        except Exception:
+            pass
+    
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue(), len(filtered)
+
+
 
 def jana_blpp_pdf(report):
     """PDF 100% IKUT TEMPLATE ASAL LP/Am 90 Pin. 1/2023 - BLPP"""
