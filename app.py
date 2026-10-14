@@ -850,8 +850,7 @@ with col_content:
                 if filtered_by_ppd:
                     sekolah_options = sorted(list(set([c["Nama_Pusat"] for c in filtered_by_ppd])))
                     selected_sekolah = st.selectbox(f"Pilih Nama Sekolah ({len(sekolah_options)} sekolah di {selected_ppd}) - Taip untuk cari", sekolah_options)
-                    # Papar full nama di bawah supaya tak truncated
-                    st.caption(f"📌 Dipilih: {selected_sekolah}")
+                    # Caption dipaparkan ringkas sahaja
                     matched = [c for c in filtered_by_ppd if c["Nama_Pusat"] == selected_sekolah]
                     if matched:
                         auto_no_pusat = matched[0]["No_Pusat"]
@@ -865,17 +864,15 @@ with col_content:
                     auto_no_pusat = ""
                     auto_kod_ppd = ""
             
-            # Maklumat Pusat - FIX BUG: Pilih ALAM MEGAH 2 keluar KOLEJ ISLAM (stale session_state)
-            # SOLUTION: Guna dynamic key supaya bila sekolah bertukar, kotak edit refresh
-            st.markdown("#### 📝 Maklumat Pusat (Auto dari Excel + Boleh Edit)")
-            st.info(f"💡 Data Excel: {selected_sekolah} = No Pusat {auto_no_pusat} | Kod {auto_kod_ppd}. Jika 1 sekolah ada banyak pusat (contoh BA097 & BA098 dua-dua KOLEJ ISLAM), KP boleh edit di bawah.")
+            # Maklumat Pusat - RINGKAS & PROFESIONAL (header biru dibuang ikut request Kashah)
+            # Tiada header besar, terus papar kotak edit sahaja
             
             # FIX: Key include selected_sekolah supaya tak stale bila tukar sekolah
             colM1, colM2, colM3 = st.columns([1, 2, 1])
             with colM1:
-                edit_no_pusat = st.text_input("No. Pusat (Boleh Edit)", value=auto_no_pusat, key=f"edit_no_{selected_sekolah}_{selected_ppd}", help=f"Auto {auto_no_pusat} dari Excel. Boleh tukar jika sekolah ada banyak pusat seperti BA097/BA098")
+                edit_no_pusat = st.text_input("No. Pusat", value=auto_no_pusat, key=f"edit_no_{selected_sekolah}_{selected_ppd}")
             with colM2:
-                edit_nama_sekolah = st.text_input("Nama Pusat (Boleh Edit)", value=selected_sekolah, key=f"edit_nama_{selected_sekolah}_{selected_ppd}", help="Full name - boleh edit")
+                edit_nama_sekolah = st.text_input("Nama Pusat", value=selected_sekolah, key=f"edit_nama_{selected_sekolah}_{selected_ppd}")
             with colM3:
                 edit_kod_ppd = st.text_input("Kod PPD", value=auto_kod_ppd, key=f"edit_kod_{selected_sekolah}_{selected_ppd}")
             
@@ -891,12 +888,10 @@ with col_content:
             selected_sekolah = final_nama_sekolah
             auto_kod_ppd = final_kod_ppd
             
-            # Debug info supaya nampak data match
-            st.caption(f"✅ Akan guna: {auto_no_pusat} - {selected_sekolah} - {auto_kod_ppd} (dari Excel: BH133=ALAM MEGAH 2, BA097=KOLEJ ISLAM)")
+
         
-            # Form BLPP sebenar
+            # Form BLPP sebenar - RINGKAS, header panjang dibuang ikut request Kashah
             st.markdown("---")
-            st.markdown(f"### 📝 Borang BLPP - {selected_sekolah} ({auto_no_pusat}) - {selected_ppd}")
         
             with st.form("blpp_form", clear_on_submit=False):
                 colA, colB, colC = st.columns(3)
