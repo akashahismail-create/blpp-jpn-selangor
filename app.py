@@ -687,12 +687,35 @@ def jana_blpp_pdf(report):
             if total_table_h < 62:
                 total_table_h = 62
             
-            # Second pass: lukis setiap baris dengan border flexible
+            # Second pass: lukis setiap baris dengan border flexible + auto page break
             row_y = y_body
+            page_limit = 185
             for idx, k in enumerate(kes_data):
                 kes_text = str(k.get('kes','')).strip()
                 tind_text = str(k.get('tindakan','')).strip()
                 pre_row_h = row_heights[idx]
+                
+                # AUTO PAGE BREAK: Jika row akan terkeluar page, buat page baru
+                if row_y + pre_row_h > page_limit:
+                    pdf.add_page()
+                    # Sambungan header kecil
+                    pdf.set_font("Helvetica", "B", 8)
+                    pdf.set_xy(10, 10)
+                    pdf.cell(277, 5, f"SAMBUNGAN - {no_pusat} | Page {pdf.page_no()}", align="C")
+                    row_y = 18
+                    # Redraw table header untuk kesinambungan
+                    pdf.set_font("Helvetica", "B", 7.5)
+                    pdf.set_xy(x0, row_y)
+                    pdf.cell(wb1, 8, "BIL.", border=1, align="C")
+                    pdf.set_xy(x1, row_y)
+                    pdf.cell(wb2, 8, "ANGKA GILIRAN", border=1, align="C")
+                    pdf.set_xy(x2, row_y)
+                    pdf.cell(wb3, 8, "NO. PENGENALAN DIRI", border=1, align="C")
+                    pdf.set_xy(x3_b, row_y)
+                    pdf.cell(wb4, 8, "KES (Sambungan)", border=1, align="C")
+                    pdf.set_xy(x4, row_y)
+                    pdf.cell(wb5, 8, "TINDAKAN (Sambungan)", border=1, align="C")
+                    row_y += 8
                 
                 # Lukis dulu border sementara dengan pre height
                 pdf.set_line_width(0.35)
@@ -751,14 +774,23 @@ def jana_blpp_pdf(report):
                         row_y += 12
                     total_table_h = row_y - y_body
 
-        # Footer - guna row_y yang sebenar selepas lukis (flexible)
+        # ===== FOOTER - Flexible + Auto Page 2 jika laporan panjang =====
+        # Jika row_y dah dekat bawah page, pindah footer ke page baru
+        page_limit = 185  # A4 landscape usable height ~ 190mm
         try:
-            yf = row_y + 8
+            curr_bottom = row_y
         except:
-            try:
-                yf = y_body + total_table_h + 6
-            except:
-                yf = y_body + 62 + 6
+            curr_bottom = y_body + 62
+        
+        if curr_bottom + 35 > page_limit:
+            pdf.add_page()
+            # Header ringkas untuk page 2 (sambungan)
+            pdf.set_font("Helvetica", "B", 8)
+            pdf.set_xy(10, 10)
+            pdf.cell(277, 5, f"SAMBUNGAN LAPORAN - {no_pusat} - {nama_pusat} - {len(kes_data)} KES", align="C")
+            yf = 18
+        else:
+            yf = curr_bottom + 8
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(10, yf)
         pdf.cell(60, 5, "Pelapor:")
