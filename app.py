@@ -877,32 +877,29 @@ def jana_blpp_pdf(report):
         pdf.set_xy(150, yf)
         pdf.cell(60, 5, "Pengesahan:")
         
-        # ===== LETAK TANDATANGAN DIGITAL PNG DI ATAS GARISAN - FIX KASHAH =====
+        # ===== LETAK TANDATANGAN CLEAR BG - BELAKANG TEXT, TIDAK TUTUP TEXT =====
         sig_b64 = report.get('tandatangan_b64','')
         if sig_b64:
             try:
                 import base64
                 from io import BytesIO
-                # Decode base64
                 img_bytes = base64.b64decode(sig_b64)
-                # Simpan ke file temp untuk FPDF
                 import os, tempfile
                 tmp_path = os.path.join(tempfile.gettempdir(), f"sig_{report.get('id','tmp')}.png")
                 with open(tmp_path, 'wb') as f:
                     f.write(img_bytes)
-                # Letak gambar tandatangan di atas garisan - di bahagian Ketua Pengawas
-                # Posisi: x=10, y=yf+2, lebar 50mm tinggi 15mm
-                pdf.image(tmp_path, x=12, y=yf+2, w=45, h=16)
-                # Optional: delete temp file
+                # Letak di ATAS label, belakang text - x=12, y=yf-6, w=40 h=12
+                # Jadi tidak tutup tulisan "Tandatangan Ketua Pengawas..."
+                # Text label ada di yf+10, jadi signature di yf-2 ke yf+8 - di atas label
+                pdf.image(tmp_path, x=14, y=yf-2, w=40, h=12)
                 try:
                     os.remove(tmp_path)
                 except:
                     pass
             except Exception as e:
-                # Jika gagal, tulis nama sahaja sebagai fallback
                 pdf.set_font("Helvetica", "I", 6)
-                pdf.set_xy(10, yf+2)
-                pdf.cell(50, 4, f"[Tandatangan: {report.get('pelapor','')}]")
+                pdf.set_xy(10, yf-2)
+                pdf.cell(50, 4, f"[TT: {report.get('pelapor','')}]")
         
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, yf+10)
@@ -1213,23 +1210,58 @@ with col_content:
             
                 with colT2:
                     st.markdown("**Preview Tandatangan**")
+                    def clear_bg_signature(pil_img):
+                        # Buang background - jadikan transparent, hanya tinggal dakwat hitam
+                        try:
+                            # Convert ke RGBA
+                            img_rgba = pil_img.convert("RGBA")
+                            # Resize kecil untuk process laju
+                            datas = img_rgba.getdata()
+                            new_data = []
+                            for item in datas:
+                                r,g,b,a = item
+                                # Jika pixel gelap (dakwat tandatangan < 90) - kekalkan hitam
+                                # Jika cerah (background kertas, bayang hitam tepi) - jadikan transparent
+                                # Threshold 100 untuk bezakan dakwat dengan background
+                                if r < 100 and g < 100 and b < 100:
+                                    # Dakwat - jadikan hitam pekat opaque
+                                    new_data.append((0, 0, 0, 255))
+                                else:
+                                    # Background - transparent
+                                    new_data.append((255, 255, 255, 0))
+                            img_rgba.putdata(new_data)
+                            return img_rgba
+                        except Exception as e:
+                            return pil_img.convert("RGBA")
+                    
                     tt_b64 = ""
                     if tandatangan_file:
                         img = Image.open(tandatangan_file)
-                        # Compress to <100KB
-                        img.thumbnail((500, 300))
+                        img.thumbnail((600, 400))
+                        # Clear background terus
+                        img_cleared = clear_bg_signature(img)
                         buf = BytesIO()
-                        img.save(buf, format="PNG", optimize=True)
+                        img_cleared.save(buf, format="PNG", optimize=True)
                         tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                        st.image(img, caption="Tandatangan Diupload", width=250)
-                        st.success(f"✅ Tandatangan: {len(tt_b64)/1024:.1f}KB")
+                        col_prev1, col_prev2 = st.columns(2)
+                        with col_prev1:
+                            st.image(img, caption="Asal", width=200)
+                        with col_prev2:
+                            st.image(img_cleared, caption="Background Cleared (Transparent)", width=200)
+                        st.success(f"✅ Tandatangan cleared: {len(tt_b64)/1024:.1f}KB - Background transparent")
                     elif camera_tt:
                         img = Image.open(camera_tt)
-                        img.thumbnail((500, 300))
+                        img.thumbnail((600, 400))
+                        img_cleared = clear_bg_signature(img)
                         buf = BytesIO()
-                        img.save(buf, format="PNG", optimize=True)
+                        img_cleared.save(buf, format="PNG", optimize=True)
                         tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                        st.image(img, caption="Tandatangan dari Kamera", width=250)
+                        col_prev1, col_prev2 = st.columns(2)
+                        with col_prev1:
+                            st.image(img, caption="Asal Kamera", width=200)
+                        with col_prev2:
+                            st.image(img_cleared, caption="Cleared - Boleh letak belakang text", width=200)
+                        st.success(f"✅ Camera cleared: {len(tt_b64)/1024:.1f}KB")
                     else:
                         st.info("Belum ada tandatangan. Sila upload atau guna kamera.")
                         # Lukis manual guna canvas simple - guna text input sebagai alternatif
