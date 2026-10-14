@@ -304,7 +304,7 @@ def load_users():
                 "id": uid,
                 "nama": f"KP {uid} - {nama_pusat[:30]}",
                 "peranan": "KP",
-                "ppd": ppd,
+                "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
                 "password": uid.lower(),
@@ -331,7 +331,7 @@ def load_users():
                 "id": uid,
                 "nama": f"KP {uid} - {nama_pusat[:30]}",
                 "peranan": "KP",
-                "ppd": ppd,
+                "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
                 "password": uid.lower(),
@@ -980,13 +980,14 @@ if "login" not in st.session_state:
     st.session_state.user = None
 
 if not st.session_state.login:
-    # FORCE CLEAN OLD CACHE - penting untuk KP001
-    import os
-    try:
-        if os.path.exists(USERS_FILE):
-            os.remove(USERS_FILE)
-    except:
-        pass
+    # FIX: Jangan delete USERS_FILE setiap kali login - menyebabkan data hilang
+    # import os
+    # try:
+    #     if os.path.exists(USERS_FILE):
+    #         os.remove(USERS_FILE)
+    # except:
+    #     pass
+    pass
     
     st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Sistem Laporan Pusat Peperiksaan</div></div>""", unsafe_allow_html=True)
     
@@ -1197,7 +1198,7 @@ with col_content:
                     no_pusat = st.text_input("No. Pusat (Auto dari Data)", value=auto_no_pusat, disabled=False)
                 with colB:
                     nama_pusat = st.text_input("Nama Pusat Peperiksaan (Auto)", value=selected_sekolah)
-                    ppd = st.text_input("PPD / Daerah (Auto)", value=selected_ppd)
+                    ppd = st.text_input("PPD / Daerah (Auto - Locked to PPD Anda)", value=user["ppd"], disabled=True, help="PPD auto ikut login anda, tidak boleh tukar untuk pastikan laporan masuk ke PPD anda")
                     kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
                 with colC:
                     tarikh = st.date_input("Tarikh Laporan", value=date.today())
@@ -1370,7 +1371,7 @@ with col_content:
                             "no_pusat": no_pusat,
                             "nama_pusat": nama_pusat,
                             "nama_kp": nama_kp,
-                            "ppd": ppd,
+                            "ppd": user["ppd"],  # FIX: Force ikut PPD login KP, bukan form
                             "tarikh": tarikh.strftime("%Y-%m-%d"),
                             "tarikh_submit": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                             "kes_data": [] if tiada_kes else kes_data,
@@ -1597,11 +1598,16 @@ with col_content:
         if not reports:
             st.warning("Belum ada laporan untuk dicetak.")
         else:
-            # Filter ikut peranan - PPD hanya nampak PPD dia
+            # Filter ikut peranan - PPD hanya nampak PPD dia - FIX REPORT MASUK PPD
             available_reports = reports
+            # Debug: tunjuk total reports
+            st.caption(f"📊 Total laporan dalam sistem: {len(reports)} | PPD anda: {user['ppd']}")
             if peranan_user == "PPD":
                 available_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
-                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - Hanya laporan PPD {user['ppd']} dipaparkan")
+                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - {len(available_reports)} laporan PPD {user['ppd']} ditemui")
+                if len(available_reports) == 0 and len(reports) > 0:
+                    st.warning(f"⚠️ Ada {len(reports)} laporan total, tapi tiada untuk PPD {user['ppd']}. Senarai PPD dalam laporan: {set([r.get('ppd','-') for r in reports])}")
+            
             elif peranan_user == "KP":
                 available_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
