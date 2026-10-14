@@ -1009,45 +1009,191 @@ if "login" not in st.session_state:
     st.session_state.user = None
 
 if not st.session_state.login:
-    # FIX: Jangan delete USERS_FILE setiap kali login - menyebabkan data hilang
-    # import os
-    # try:
-    #     if os.path.exists(USERS_FILE):
-    #         os.remove(USERS_FILE)
-    # except:
-    #     pass
-    pass
+    # FRONT PAGE MENARIK - KASHAH REQUEST - BUANG DEMO LOGIN, TULIS PENUH
+    st.markdown('''
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+    .stApp { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%); }
+    .header-hero {
+        background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 20px;
+        padding: 32px 24px;
+        text-align: center;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    .login-card {
+        background: rgba(255,255,255,0.98);
+        border-radius: 20px;
+        padding: 28px;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1);
+        border: none;
+    }
+    .role-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        margin: 4px;
+    }
+    .badge-kp { background: #dbeafe; color: #1e40af; }
+    .badge-ppd { background: #dcfce7; color: #166534; }
+    .badge-jpn { background: #fef3c7; color: #92400e; }
+    .badge-lp { background: #fce7f3; color: #9d174d; }
+    .feature-box {
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 14px;
+        padding: 16px;
+        text-align: center;
+    }
+    div[data-testid="stSelectbox"] > div > div { 
+        border-radius: 12px !important; 
+        border: 2px solid #e2e8f0 !important;
+        font-weight: 600;
+    }
+    div[data-testid="stTextInput"] > div > div > input {
+        border-radius: 12px !important;
+        border: 2px solid #e2e8f0 !important;
+        padding: 14px !important;
+    }
+    .stButton > button {
+        border-radius: 12px !important;
+        padding: 14px !important;
+        font-weight: 700 !important;
+        font-size: 15px !important;
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        border: none !important;
+        box-shadow: 0 4px 14px rgba(239,68,68,0.4) !important;
+        letter-spacing: 0.3px;
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
+        box-shadow: 0 6px 20px rgba(239,68,68,0.5) !important;
+        transform: translateY(-1px);
+    }
+    </style>
+    ''', unsafe_allow_html=True)
     
-    st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Sistem Laporan Pusat Peperiksaan</div></div>""", unsafe_allow_html=True)
+    # Hero Header Menarik
+    st.markdown('''
+    <div class="header-hero">
+        <div style="font-size:48px; margin-bottom:12px;">📋</div>
+        <h1 style="font-size:28px; font-weight:800; color:white; margin:0; letter-spacing:0.5px; font-family:Inter; text-shadow:0 2px 10px rgba(0,0,0,0.3);">
+            SISTEM LAPORAN PUSAT PEPERIKSAAN
+        </h1>
+        <p style="font-size:15px; color:#bfdbfe; margin:10px 0 0 0; font-weight:500;">
+            Sektor Pentaksiran dan Peperiksaan<br>Jabatan Pendidikan Negeri Selangor
+        </p>
+        <div style="margin-top:18px; display:flex; justify-content:center; flex-wrap:wrap; gap:6px;">
+            <span class="role-badge badge-kp">KP • KETUA PENGAWAS</span>
+            <span class="role-badge badge-ppd">PPD • PEJABAT PENDIDIKAN DAERAH</span>
+            <span class="role-badge badge-jpn">JPN • JABATAN PENDIDIKAN NEGERI</span>
+            <span class="role-badge badge-lp">LP • LEMBAGA PEPERIKSAAN</span>
+        </div>
+        <div style="margin-top:16px; font-size:12px; color:#fbbf24; font-weight:700; letter-spacing:1px;">
+            ✨ BLPP LP/Am 90 Pin. 1/2023 | SPM • UJIAN AMALI SAINS ✨
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1,1.2,1])
+    col1, col2, col3 = st.columns([1,1.15,1])
     with col2:
-        st.markdown('<div class="card"><h3 style="text-align:center; margin:0 0 16px 0;">🔐 Log Masuk Sistem</h3>', unsafe_allow_html=True)
-        users = load_users()
-        peranan = st.selectbox("Peranan", ["KP - Ketua Pengawas", "PPD", "ADMIN_JPN - JPN Selangor", "LP - Lembaga Peperiksaan"])
-        id_pengguna = st.text_input("ID Pengguna", placeholder="Contoh: KP001 / PPD01 / JPN001 / LP001")
-        password = st.text_input("Kata Laluan", type="password")
+        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        st.markdown('<h3 style="text-align:center; margin:0 0 6px 0; font-size:20px; font-weight:800; color:#0f172a;">🔐 Log Masuk Sistem</h3><p style="text-align:center; font-size:12px; color:#64748b; margin:0 0 18px 0;">Sila pilih peranan dan masukkan ID anda</p>', unsafe_allow_html=True)
         
-        if st.button("Log Masuk", type="primary", use_container_width=True):
+        users = load_users()
+        # FIX KASHAH: Tulis penuh - KP KETUA PENGAWAS, PPD PEJABAT PENDIDIKAN DAERAH, JPN JABATAN PENDIDIKAN NEGERI, LP LEMBAGA PEPERIKSAAN
+        peranan_options = [
+            "KP - KETUA PENGAWAS",
+            "PPD - PEJABAT PENDIDIKAN DAERAH",
+            "JPN - JABATAN PENDIDIKAN NEGERI",
+            "LP - LEMBAGA PEPERIKSAAN"
+        ]
+        peranan = st.selectbox("Peranan", peranan_options, label_visibility="visible")
+        
+        id_pengguna = st.text_input("ID Pengguna", placeholder="Contoh: KP001 / BA / JPN / LP")
+        password = st.text_input("Kata Laluan", type="password", placeholder="Masukkan kata laluan")
+        
+        st.markdown('<div style="height:8px;"></div>', unsafe_allow_html=True)
+        
+        if st.button("Log Masuk →", type="primary", use_container_width=True):
             found = None
             uid_input = id_pengguna.strip().upper()
-            pwd_input = password.strip().lower()  # FIX: lowercase password
+            pwd_input = password.strip()
+            pwd_lower = pwd_input.lower()
+            
+            # Mapping peranan pilih ke peranan sistem
+            if peranan.startswith("KP"):
+                target_roles = ["KP"]
+            elif peranan.startswith("PPD"):
+                target_roles = ["PPD"]
+            elif peranan.startswith("JPN"):
+                target_roles = ["ADMIN_JPN"]
+            elif peranan.startswith("LP"):
+                target_roles = ["LP"]
+            else:
+                target_roles = []
+            
             for u in users:
-                # FIX: password check lowercase
-                if u["id"].upper() == uid_input and str(u["password"]).lower() == pwd_input:
-                    if peranan.startswith(u["peranan"]) or u["peranan"] in peranan:
-                        found = u
-                        break
+                # Check ID
+                if u["id"].upper() != uid_input:
+                    continue
+                # Check password - support multiple password fields
+                stored_pwds = [str(u.get("password","")).lower(), str(u.get("password_alt","")).lower(), str(u.get("password_alt2","")).lower(), str(u.get("password_alt3","")).lower()]
+                if pwd_lower not in stored_pwds and pwd_input not in [u.get("password",""), u.get("password_alt",""), u.get("password_alt2","")]:
+                    # Also check exact case
+                    if pwd_input != u.get("password","") and pwd_lower != str(u.get("password","")).lower():
+                        continue
+                # Check role
+                if u["peranan"] in target_roles:
+                    found = u
+                    break
+            
             if found:
                 st.session_state.login = True
                 st.session_state.user = found
-                st.success(f"Selamat datang {found['nama']}!")
+                st.success(f"✅ Selamat datang {found['nama']}!")
+                st.balloons()
                 st.rerun()
             else:
-                st.error(f"ID atau Kata Laluan salah! Cuba: KP001 / kp001 (Debug: {len(users)} users loaded)")
+                st.error("❌ ID atau Kata Laluan salah. Sila semak peranan dan cuba lagi.")
         
-        st.markdown('<div style="margin-top:14px; padding:10px; background:#F0F7FF; border-radius:8px; font-size:11px;"><b>Demo Login:</b><br/>KP: KP001 / kp001 (504 pusat)<br/>PPD: PPD01 / ppd01 (10 PPD)<br/>JPN: JPN / 2026 atau JPN001 / 2026<br/>LP: LP001 / lp123<br/>BH562 / bh562 juga boleh</div>', unsafe_allow_html=True)
+        st.markdown('''
+        <div style="margin-top:20px; padding:14px; background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius:12px; border:1px solid #bae6fd;">
+            <div style="font-size:11px; font-weight:700; color:#0369a1; margin-bottom:8px;">💡 PANDUAN LOG MASUK:</div>
+            <div style="font-size:11px; color:#075985; line-height:1.6;">
+                <b>KP:</b> ID No Pusat anda (cth: BH562) • Password sama dengan ID<br>
+                <b>PPD:</b> Kod PPD (BA= Klang, BB=Kuala Langat...) • Password kod kecil (ba)<br>
+                <b>JPN:</b> ID JPN • Password 2026<br>
+                <b>LP:</b> ID LP • Password 2026
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+        
         st.markdown('</div>', unsafe_allow_html=True)
+        
+        # Features bawah
+        st.markdown('''
+        <div style="margin-top:18px; display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="feature-box">
+                <div style="font-size:20px;">📝</div>
+                <div style="font-size:11px; color:white; font-weight:600; margin-top:4px;">Laporan Pantas<br>KP Isi Terus</div>
+            </div>
+            <div class="feature-box">
+                <div style="font-size:20px;">🖨️</div>
+                <div style="font-size:11px; color:white; font-weight:600; margin-top:4px;">Cetak BLPP<br>Auto PDF</div>
+            </div>
+        </div>
+        <div style="text-align:center; margin-top:20px; font-size:10px; color:rgba(255,255,255,0.6);">
+            © 2026 Sektor Pentaksiran & Peperiksaan, JPN Selangor<br>Versi 2.0 • Selamat • Pantas • Mesra Pengguna
+        </div>
+        ''', unsafe_allow_html=True)
+    
     st.stop()
 
 # ========== DASHBOARD UTAMA ==========
