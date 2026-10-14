@@ -282,7 +282,8 @@ def load_users():
     users.append({"id":"JPN001","nama":"JPN Selangor - Admin","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"2026","telefon":"","telefon":""})
     users.append({"id":"JPN002","nama":"JPN Selangor 2","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
     # LP
-    users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"lp123","telefon":""})
+    users.append({"id":"LP","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"2026","telefon":""})
+    users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"2026","telefon":""})
     # 10 PPD - PASSWORD KOD PPD IKUT CADANGAN KASHAH: BA=Klang, BB=Kuala Langat dll - MUDAH INGAT
     # Mapping Kod ke PPD dari KOD_PPD_MAPPING
     PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}  # Klang->BA etc
@@ -1084,12 +1085,13 @@ with col_menu:
     ''', unsafe_allow_html=True)
     
     # Menu ikut peranan - JPN ada Padam Laporan
+    # FIX KASHAH: LP sama macam JPN cuma tiada Delete & Pengurusan Pengguna
     if peranan_user == "ADMIN_JPN":
         menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "🗑️ Padam Laporan", "👥 Pengurusan Pengguna (JPN)", "🚪 Log Keluar"]
     elif peranan_user == "PPD":
         menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📈 Statistik PPD", "🚪 Log Keluar"]
     elif peranan_user == "LP":
-        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📈 Statistik LP", "🚪 Log Keluar"]
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "🚪 Log Keluar"]
     else:
         menu_items = ["📝 Isi Borang BLPP (KP)", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
     menu = st.radio("Menu", menu_items, label_visibility="collapsed")
