@@ -463,6 +463,37 @@ def jana_blpp_html(report):
     tiada_kes = report.get('tiada_kes', False)
     pelapor_html = report.get('pelapor','') or ""  # Kosong jika KP tak isi
     
+    # FIX LOGO - embed base64 supaya ada logo dalam HTML download
+    logo_b64 = ""
+    try:
+        import base64, os
+        from PIL import Image
+        import io
+        logo_paths = ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/mnt/data/logo_lp.png", "LEMBAGA PEPERIKSAAN.png"]
+        # Also try to find any logo file
+        for lp in logo_paths:
+            if os.path.exists(lp):
+                try:
+                    with open(lp, "rb") as f:
+                        logo_b64 = base64.b64encode(f.read()).decode()
+                        break
+                except:
+                    pass
+        # If still not found, try create simple placeholder logo from existing pdf logo
+        if not logo_b64 and os.path.exists("/tmp/logo_final.png"):
+            try:
+                with open("/tmp/logo_final.png", "rb") as f:
+                    logo_b64 = base64.b64encode(f.read()).decode()
+            except:
+                pass
+        # Fallback: use small transparent pixel if no logo (will be hidden via onerror)
+        if not logo_b64:
+            # 1x1 transparent
+            logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+    except:
+        logo_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+ip1sAAAAASUVORK5CYII="
+
+    
     sig_b64_html = report.get('tandatangan_b64','')
     if sig_b64_html:
         sig_img_html = f'<img src="data:image/png;base64,{sig_b64_html}" style="max-height:55px; max-width:200px;">'
@@ -515,7 +546,9 @@ def jana_blpp_html(report):
     </style></head><body>
     <div class="page">
         <div class="hdr">
-            <div style="width:100px;"><img src="logo_lp.png" style="width:90px; display:none;"></div>
+            <div style="width:100px;">
+                <img src="data:image/png;base64,{logo_b64}" style="width:85px; height:auto; display:block;" onerror="this.style.display='none'">
+            </div>
             <div class="hdr-center">LEMBAGA PEPERIKSAAN<br>KEMENTERIAN PENDIDIKAN MALAYSIA</div>
             <div class="hdr-right">LP/Am 90 Pin. 1/2023<br><b style="font-size:13pt;">BLPP</b></div>
         </div>
@@ -568,88 +601,6 @@ def jana_blpp_html(report):
     </div></body></html>
     """
     return html
-
-# ========== FUNGSI DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) ==========
-def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
-    """Create ZIP containing PDFs/HTMLs for all reports on selected date"""
-    import zipfile
-    from io import BytesIO
-    
-    filtered = [r for r in reports if r.get('tarikh') == tarikh_selected]
-    if not filtered:
-        return None, 0
-    
-    zip_buffer = BytesIO()
-    
-    # Try to import weasyprint or pdfkit for PDF conversion, fallback to HTML
-    pdf_available = False
-    try:
-        from weasyprint import HTML as WP_HTML
-        pdf_available = True
-        use_weasyprint = True
-    except:
-        try:
-            import pdfkit
-            pdf_available = True
-            use_weasyprint = False
-        except:
-            pdf_available = False
-            use_weasyprint = False
-    
-    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-        for r in filtered:
-            no_pusat = r.get('no_pusat','UNKNOWN')
-            nama_pusat = r.get('nama_pusat','')[:20]
-            ppd = r.get('ppd','')
-            # Bersihkan nama file
-            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in nama_pusat)
-            base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}_{ppd}"
-            
-            html_content = jana_blpp_html(r)
-            
-            if pdf_available:
-                try:
-                    if use_weasyprint:
-                        pdf_bytes = WP_HTML(string=html_content).write_pdf()
-                        zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
-                    else:
-                        # pdfkit needs wkhtmltopdf binary, may fail
-                        pdf_bytes = pdfkit.from_string(html_content, False)
-                        zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
-                except Exception as e:
-                    # Fallback to HTML if PDF conversion fails
-                    zip_file.writestr(f"{base_filename}.html", html_content)
-            else:
-                # Save as HTML (user can print to PDF)
-                zip_file.writestr(f"{base_filename}.html", html_content)
-        
-        # Also add a summary CSV
-        try:
-            import pandas as pd
-            df_summary = pd.DataFrame([{
-                'Tarikh': r.get('tarikh',''),
-                'No Pusat': r.get('no_pusat',''),
-                'Nama Pusat': r.get('nama_pusat',''),
-                'PPD': r.get('ppd',''),
-                'Peperiksaan': r.get('peperiksaan',''),
-                'Nama KP': r.get('nama_kp',''),
-                'Status': 'TIADA KES' if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES",
-                'ID': r.get('id','')
-            } for r in filtered])
-            csv_buffer = BytesIO()
-            df_summary.to_csv(csv_buffer, index=False, encoding='utf-8-sig')
-            zip_file.writestr(f"RINGKASAN_{tarikh_selected}.csv", csv_buffer.getvalue())
-        except:
-            pass
-    
-    zip_buffer.seek(0)
-    return zip_buffer.getvalue(), len(filtered)
-
-def create_single_combined_pdf(reports, tarikh_selected):
-    """Create single combined PDF with all reports for the date (optional)"""
-    # For simplicity, return None - use ZIP approach
-    return None
-
 
 
 def jana_blpp_pdf(report):
@@ -2070,69 +2021,6 @@ with col_content:
                     filtered_by_tarikh = available_reports
                     if sel_tarikh != "Semua Tarikh":
                         filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
-                    
-                    # ========== BULK DOWNLOAD PUKAL PDF IKUT TARIKH (JPN) ==========
-                    if sel_tarikh != "Semua Tarikh" and len(filtered_by_tarikh)>0:
-                        st.markdown("---")
-                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh}")
-                        st.info(f"📅 {len(filtered_by_tarikh)} laporan pada {sel_tarikh} untuk PPD {sel_ppd} sedia untuk download pukal. Klik butang di bawah, sistem akan download ZIP berisi semua laporan PDF pada hari tersebut. Simpan ZIP di folder Desktop anda.")
-                        
-                        col_dl1, col_dl2 = st.columns([2,1])
-                        with col_dl1:
-                            if st.button(f"📦 Jana ZIP Pukal PDF ({len(filtered_by_tarikh)} laporan)", key=f"bulk_{sel_tarikh}_{sel_ppd}", type="primary", use_container_width=True):
-                                with st.spinner(f"Sedang jana {len(filtered_by_tarikh)} PDF untuk tarikh {sel_tarikh}..."):
-                                    zip_data, count = create_bulk_pdf_zip_by_date(available_reports, sel_tarikh)
-                                    if zip_data:
-                                        st.session_state[f"bulk_zip_{sel_tarikh}"] = zip_data
-                                        st.session_state[f"bulk_count_{sel_tarikh}"] = count
-                                        st.success(f"✅ {count} laporan berjaya dijana! Klik butang Download di sebelah.")
-                                    else:
-                                        st.error("Gagal jana ZIP")
-                        
-                        with col_dl2:
-                            zip_key = f"bulk_zip_{sel_tarikh}"
-                            if zip_key in st.session_state:
-                                st.download_button(
-                                    label=f"⬇️ Download ZIP ({st.session_state.get(f'bulk_count_{sel_tarikh}',0)} fail)",
-                                    data=st.session_state[zip_key],
-                                    file_name=f"BLPP_PUKAL_{sel_ppd}_{sel_tarikh}_{len(filtered_by_tarikh)}laporan.zip",
-                                    mime="application/zip",
-                                    key=f"download_zip_{sel_tarikh}",
-                                    use_container_width=True,
-                                    help="Simpan di Desktop anda - ZIP mengandungi semua PDF laporan hari tersebut"
-                                )
-                                st.caption("💡 Tip: Save ZIP di Desktop, extract, semua PDF ada dalam folder")
-                    elif sel_tarikh == "Semua Tarikh" and len(available_reports)>0:
-                        # Bulk download untuk semua tarikh dalam PPD tersebut (group by tarikh)
-                        st.markdown("---")
-                        st.markdown(f"### 📥 Download Pukal Ikut Tarikh - PPD {sel_ppd}")
-                        st.caption(f"Total {len(available_reports)} laporan. Pilih tarikh spesifik untuk download pukal, atau pilih tarikh di bawah untuk download semua tarikh tersebut.")
-                        
-                        # Show available dates with counts
-                        from collections import Counter
-                        tarikh_counts = Counter([r.get('tarikh','') for r in available_reports])
-                        for t, c in sorted(tarikh_counts.items(), reverse=True)[:10]:
-                            col_t1, col_t2, col_t3 = st.columns([2,1,1])
-                            with col_t1:
-                                st.write(f"📅 {t} - {c} laporan")
-                            with col_t2:
-                                if st.button(f"Jana ZIP", key=f"jana_{t}_{sel_ppd}"):
-                                    with st.spinner(f"Jana {c} PDF..."):
-                                        zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
-                                        if zip_data:
-                                            st.session_state[f"bulk_zip_{t}"] = zip_data
-                                            st.session_state[f"bulk_count_{t}"] = count
-                                            st.success(f"✅ {count} laporan {t} sedia!")
-                            with col_t3:
-                                zk = f"bulk_zip_{t}"
-                                if zk in st.session_state:
-                                    st.download_button(
-                                        label=f"⬇️ ZIP {c} fail",
-                                        data=st.session_state[zk],
-                                        file_name=f"BLPP_PUKAL_{sel_ppd}_{t}_{c}laporan.zip",
-                                        mime="application/zip",
-                                        key=f"dl_{t}_{sel_ppd}"
-                                    )
                     
                     # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
                     pusat_map = {}
