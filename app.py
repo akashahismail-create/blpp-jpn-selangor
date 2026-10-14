@@ -138,9 +138,20 @@ def ensure_centers(centers):
 
 PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}
 
-PEPERIKSAAN_LIST = ["SPM 2026", "SPM Ulangan 2026", "Ujian Amali Sains SPM", "STAM 2026"]  # FIX: STPM & MUET dibuang ikut request Kashah
+PEPERIKSAAN_LIST = [
+    "SPM 2026", 
+    "SPM Ulangan 2026", 
+    "Ujian Amali Sains SPM", 
+    "STAM 2026",
+    "Ujian Bertutur Bahasa Melayu SPM",
+    "Ujian Bertutur Bahasa Inggeris SPM",
+    "Ujian Mendengar Bahasa Melayu & Bahasa Inggeris SPM",
+    "Ujian Bertutur BM",
+    "Ujian Bertutur BI",
+    "Ujian Mendengar"
+]  # TAMBAH Ujian Bertutur BM, BI, Mendengar ikut request Kashah
 
-JENIS_PEPERIKSAAN = ["Peperiksaan SPM (504 Pusat)", "Ujian Amali Sains (277 Pusat Makmal)"]
+JENIS_PEPERIKSAAN = ["Peperiksaan SPM (504 Pusat)", "Ujian Amali Sains (277 Pusat Makmal)", "Ujian Bertutur & Mendengar"]
 
 def find_excel_file(folder, keywords):
     import os, glob
