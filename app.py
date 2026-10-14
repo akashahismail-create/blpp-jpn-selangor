@@ -365,6 +365,7 @@ def save_reports(reports):
 
 
 def jana_blpp_html(report):
+    # FIX UnboundLocalError - define semua variable di atas sekali
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
     nama_kp = report.get('nama_kp','')
@@ -372,13 +373,27 @@ def jana_blpp_html(report):
     tahun = report.get('tahun','')
     kes_data = report.get('kes_data', [])
     tiada_kes = report.get('tiada_kes', False)
+    pelapor_html = report.get('pelapor','') or report.get('nama_kp','') or report.get('nama','') or "-"
+    
+    sig_b64_html = report.get('tandatangan_b64','')
+    if sig_b64_html:
+        sig_img_html = f'<img src="data:image/png;base64,{sig_b64_html}" style="max-height:55px; max-width:200px;">'
+    else:
+        sig_img_html = '<div style="height:55px;"></div>'
+    
+    tarikh_html_raw = report.get('tarikh','')
+    try:
+        from datetime import datetime as dth
+        tarikh_html_obj = dth.strptime(tarikh_html_raw, "%Y-%m-%d")
+        tarikh_html = tarikh_html_obj.strftime("%d/%m/%Y")
+    except:
+        tarikh_html = tarikh_html_raw if tarikh_html_raw else "___/___/______"
     
     if peperiksaan and tahun:
         pep_line = f"PEPERIKSAAN {peperiksaan} TAHUN {tahun}"
     else:
         pep_line = "PEPERIKSAAN ........................................ TAHUN ........................................"
     
-    # KES rows - ikut template asal: 5 baris kosong besar
     if tiada_kes or not kes_data:
         kes_rows = ""
         for _ in range(5):
@@ -386,27 +401,9 @@ def jana_blpp_html(report):
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
-            kes_rows += f"<tr><td style='height:auto; min-min-height:32px; height:auto; word-wrap:break-word; white-space:pre-wrap;'>{i}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('angka_giliran','')}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('no_ic','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('kes','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('tindakan','')}</td></tr>"
+            kes_rows += f"<tr><td style='height:auto; min-height:32px; word-wrap:break-word; white-space:pre-wrap;'>{i}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('angka_giliran','')}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('no_ic','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('kes','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('tindakan','')}</td></tr>"
         for _ in range(max(0, 5 - len(kes_data))):
             kes_rows += "<tr><td style='min-height:32px; height:auto;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
-
-    # Signature image untuk HTML
-    sig_b64_html = report.get('tandatangan_b64','')
-    if sig_b64_html:
-        sig_img_html = f'<img src="data:image/png;base64,{sig_b64_html}" style="max-height:55px; max-width:200px;">'
-    else:
-        sig_img_html = '<div style="height:55px;"></div>'
-    
-    # Tarikh terus letak tarikh laporan (fix Kashah)
-    tarikh_html_raw = report.get('tarikh','')
-    try:
-        from datetime import datetime as dth
-        tarikh_html_obj = dth.strptime(tarikh_html_raw, "%Y-%m-%d")
-        tarikh_html = tarikh_html_obj.strftime("%d/%m/%Y")
-    except:
-        pelapor_html = report.get('pelapor','') or report.get('nama_kp','') or "-"
-    tarikh_html = tarikh_html_raw if tarikh_html_raw else "___/___/______"
-    
     
     html = f"""
     <!DOCTYPE html><html><head><meta charset="utf-8">
