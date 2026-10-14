@@ -2262,12 +2262,34 @@ with col_content:
                         st.success(f"{len(df_import)} KP diimport!")
     
         else:
-            # Statistik untuk PPD / LP / KP
+            # Statistik untuk PPD / LP / KP - FIX robust Petaling Utama
             st.markdown(f'<div class="card"><h3>📈 Statistik {peranan_user} - {user.get("ppd","")}</h3></div>', unsafe_allow_html=True)
         
             my_reports = reports
             if peranan_user == "PPD":
-                my_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
+                user_ppd = user["ppd"]
+                user_kod = user.get("kod_ppd","")
+                def match_stat(r):
+                    r_ppd = str(r.get("ppd","")).strip()
+                    r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                    if r_ppd == user_ppd:
+                        return True
+                    if user_kod and r_kod == user_kod.upper():
+                        return True
+                    if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                        return True
+                    if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
+                        return True
+                    # Also check all BK codes
+                    if user_ppd == "Petaling Utama":
+                        # Petaling Utama reports might have ppd = BK or Petaling Utama
+                        if r_ppd in ["BK", "Petaling Utama"] or str(r.get("no_pusat","")).upper().startswith("BK"):
+                            return True
+                    return False
+                my_reports = [r for r in reports if match_stat(r)]
+                # Debug info if 0
+                if len(my_reports)==0 and len(reports)>0:
+                    st.warning(f"Debug Statistik: {len(reports)} total laporan, tapi 0 untuk {user_ppd}. PPD dalam reports: {list(set([r.get('ppd','') for r in reports]))[:10]}, No Pusat: {list(set([str(r.get('no_pusat',''))[:2] for r in reports]))[:10]}")
             elif peranan_user == "KP":
                 my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
