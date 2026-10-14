@@ -971,7 +971,7 @@ if not st.session_state.login:
     except:
         pass
     
-st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Created by Akash | Peranan: {peranan_user}</div></div>""", unsafe_allow_html=True)
+    st.markdown(f"""<div class="header-biru" style="text-align:center; padding:22px 10px;"><h1 style="font-size:22px; font-weight:800; margin:0; letter-spacing:0.5px;">📋 SISTEM LAPORAN PUSAT PEPERIKSAAN</h1><h2 style="font-size:14px; font-weight:500; margin:8px 0 0 0; color:#E3F2FD;">Sektor Pentaksiran dan Peperiksaan, Jabatan Pendidikan Selangor</h2><div style="font-size:12px; margin-top:10px; color:#FFD700; font-weight:700; letter-spacing:0.8px; text-shadow:0 1px 3px rgba(0,0,0,0.3);">Sistem Laporan Pusat Peperiksaan</div></div>""", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1,1.2,1])
     with col2:
