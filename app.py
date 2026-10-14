@@ -395,6 +395,11 @@ def load_reports():
 def save_reports(reports):
     with open(REPORTS_FILE, "w") as f:
         json.dump(reports, f, indent=2)
+    # Clear cache supaya data baru terus nampak
+    try:
+        load_reports_cached.clear()
+    except:
+        pass
 
 # ========== FUNGSI JANA BORANG BLPP HTML (OFFICIAL) ==========
 
