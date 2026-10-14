@@ -363,6 +363,7 @@ def save_reports(reports):
 
 
 
+
 def jana_blpp_html(report):
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
@@ -377,43 +378,43 @@ def jana_blpp_html(report):
     else:
         pep_line = "PEPERIKSAAN ........................................ TAHUN ........................................"
     
+    # KES rows - ikut template asal: 5 baris kosong besar
     if tiada_kes or not kes_data:
         kes_rows = ""
-        for _ in range(6):
-            kes_rows += "<tr><td style='height:32px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
+        for _ in range(5):
+            kes_rows += "<tr><td style='height:62px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
-            kes_rows += f"<tr><td>{i}</td><td>{k.get('angka_giliran','')}</td><td>{k.get('no_ic','')}</td><td style='text-align:left;'>{k.get('kes','')}</td><td style='text-align:left;'>{k.get('tindakan','')}</td></tr>"
-        for _ in range(max(0, 6 - len(kes_data))):
+            kes_rows += f"<tr><td style='height:32px;'>{i}</td><td>{k.get('angka_giliran','')}</td><td>{k.get('no_ic','')}</td><td style='text-align:left;'>{k.get('kes','')}</td><td style='text-align:left;'>{k.get('tindakan','')}</td></tr>"
+        for _ in range(max(0, 5 - len(kes_data))):
             kes_rows += "<tr><td style='height:32px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
 
     html = f"""
     <!DOCTYPE html><html><head><meta charset="utf-8">
     <style>
         @page {{ size: A4 landscape; margin: 10mm 12mm 8mm 12mm; }}
-        body {{ font-family: Arial, sans-serif; margin:0; }}
+        body {{ font-family: Arial, sans-serif; margin:0; color:#000; }}
         .page {{ width:100%; max-width:1020px; margin:0 auto; }}
-        .hdr {{ display:flex; justify-content:space-between; }}
-        .hdr-center {{ text-align:center; font-weight:bold; font-size:10.5pt; flex:1; line-height:1.2; }}
-        .hdr-right {{ text-align:right; font-size:8.5pt; font-weight:bold; }}
-        hr {{ border:none; border-top:1.5px solid #000; margin:6px 0; }}
+        .hdr {{ display:flex; justify-content:space-between; align-items:flex-start; }}
+        .hdr-center {{ text-align:center; font-weight:bold; font-size:11pt; flex:1; line-height:1.25; }}
+        .hdr-right {{ text-align:right; font-size:9pt; font-weight:bold; line-height:1.2; }}
+        hr {{ border:none; border-top:1.8px solid #000; margin:8px 0; }}
         .pep {{ text-align:center; font-weight:bold; font-size:11pt; margin:8px 0 2px 0; }}
-        .title {{ text-align:center; font-weight:bold; font-size:12.5pt; text-decoration:underline; margin:2px 0 8px 0; }}
-        /* FIX: arahan sama lebar dengan table */
-        .arahan {{ width:100%; font-size:7.8pt; text-align:justify; line-height:1.2; box-sizing:border-box; }}
-        .arahan ol {{ margin:0; padding-left:16px; }}
-        table {{ width:100%; border-collapse:collapse; }}
-        th, td {{ border:1px solid #000; padding:3px 5px; font-size:8.5pt; }}
-        th {{ text-align:center; font-weight:bold; }}
-        td {{ text-align:center; }}
-        .footer {{ display:flex; justify-content:space-between; margin-top:20px; font-size:8.5pt; }}
+        .title {{ text-align:center; font-weight:bold; font-size:13pt; margin:2px 0 10px 0; }}
+        .arahan {{ width:100%; font-size:8.2pt; text-align:left; line-height:1.35; box-sizing:border-box; }}
+        .arahan ol {{ margin:0; padding-left:18px; }}
+        table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
+        th, td {{ border:1.2px solid #000; padding:4px 5px; font-size:9pt; }}
+        th {{ text-align:center; font-weight:bold; vertical-align:middle; }}
+        td {{ text-align:center; vertical-align:middle; }}
+        .footer {{ display:flex; justify-content:space-between; margin-top:26px; font-size:9pt; }}
     </style></head><body>
     <div class="page">
         <div class="hdr">
-            <div style="width:90px;"></div>
+            <div style="width:100px;"><img src="logo_lp.png" style="width:90px; display:none;"></div>
             <div class="hdr-center">LEMBAGA PEPERIKSAAN<br>KEMENTERIAN PENDIDIKAN MALAYSIA</div>
-            <div class="hdr-right">LP/Am 90 Pin. 1/2023<br><b style="font-size:12pt;">BLPP</b></div>
+            <div class="hdr-right">LP/Am 90 Pin. 1/2023<br><b style="font-size:13pt;">BLPP</b></div>
         </div>
         <hr>
         <div class="pep">{pep_line}</div>
@@ -422,37 +423,41 @@ def jana_blpp_html(report):
             <li>Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.</li>
             <li>Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan).</li>
         </ol></div>
-        <table style="margin-top:6px;">
+        <table style="margin-top:10px;">
             <tr>
-                <th style="width:14%; text-align:center;">NO. PUSAT</th>
-                <th style="width:34%; text-align:center;">NAMA PUSAT PEPERIKSAAN</th>
-                <th style="width:52%; text-align:center; font-size:7.5pt; line-height:1.15; padding:4px 2px;">
-                    NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS<br>AMALI/KETUA PENTAKSIR/ASSESSOR
+                <th style="width:20%;">NO. PUSAT</th>
+                <th style="width:38%;">NAMA PUSAT PEPERIKSAAN</th>
+                <th style="width:42%; font-size:8.5pt; line-height:1.15;">
+                    NAMA KETUA PENGAWAS<br>PEPERIKSAAN/KETUA PENGAWAS<br>AMALI/KETUA PENTAKSIR/ASSESSOR
                 </th>
             </tr>
             <tr>
-                <td style="font-weight:bold; height:22px; text-align:center;">{no_pusat}</td>
-                <td style="font-weight:bold; text-align:center;">{nama_pusat}</td>
-                <td style="font-weight:bold; text-align:center; word-break:break-word;">{nama_kp}</td>
+                <td style="font-weight:bold; height:24px;">{no_pusat}</td>
+                <td style="font-weight:bold;">{nama_pusat}</td>
+                <td style="font-weight:bold; word-wrap:break-word;">{nama_kp}</td>
             </tr>
         </table>
-        <table style="margin-top:8px;">
-            <tr><th style="width:5%;">BIL.</th><th style="width:15%;">ANGKA GILIRAN</th><th style="width:18%;">NO. PENGENALAN DIRI</th><th style="width:31%;">KES</th><th style="width:31%;">TINDAKAN</th></tr>
+        <table style="margin-top:14px;">
+            <tr>
+                <th style="width:6%;">BIL.</th>
+                <th style="width:16%;">ANGKA GILIRAN</th>
+                <th style="width:16%;">NO. PENGENALAN DIRI</th>
+                <th style="width:31%;">KES</th>
+                <th style="width:31%;">TINDAKAN</th>
+            </tr>
             {kes_rows}
         </table>
         <div class="footer">
-            <div>Pelapor:<br><br><br>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: __________________________________________</div>
-            <div>Pengesahan:<br><br><br>______________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: ____________________________________________</div>
+            <div>Pelapor:<br><br><br>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: _________________________________</div>
+            <div>Pengesahan:<br><br><br>___________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: _________________________________</div>
         </div>
     </div></body></html>
     """
     return html
 
 
-
-
 def jana_blpp_pdf(report):
-    """PDF SEBIJIK 100% BORANG ASAL LP - FINAL - logo besar, tanpa garisan, tengah 1 kotak besar kosong"""
+    """PDF 100% IKUT TEMPLATE ASAL LP/Am 90 Pin. 1/2023 - BLPP"""
     no_pusat = report.get('no_pusat','')
     nama_pusat = report.get('nama_pusat','')
     nama_kp = report.get('nama_kp','')
@@ -467,7 +472,7 @@ def jana_blpp_pdf(report):
         import os
 
         logo_to_use = None
-        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/tmp/logo_final.png"]:
+        for lp in ["logo_lp.png", "data/logo_lp.png", "./logo_lp.png", "/tmp/logo_final.png", "LEMBAGA PEPERIKSAAN.png"]:
             if os.path.exists(lp):
                 try:
                     im = Image.open(lp)
@@ -482,131 +487,171 @@ def jana_blpp_pdf(report):
         pdf = FPDF(orientation='L', unit='mm', format='A4')
         pdf.set_auto_page_break(auto=False)
         pdf.add_page()
+        pdf.set_line_width(0.35)
 
         if logo_to_use:
             try:
-                pdf.image(logo_to_use, x=10, y=4, w=32)
+                pdf.image(logo_to_use, x=10, y=4, w=28)
             except:
                 pass
 
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.set_xy(45, 7)
+        # Header tengah
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.set_xy(42, 6)
         pdf.cell(190, 5, "LEMBAGA PEPERIKSAAN", align="C")
-        pdf.set_xy(45, 12)
+        pdf.set_xy(42, 11)
         pdf.cell(190, 5, "KEMENTERIAN PENDIDIKAN MALAYSIA", align="C")
-        pdf.set_font("Helvetica", "", 7)
-        pdf.set_xy(250, 7)
+
+        # Kanan atas
+        pdf.set_font("Helvetica", "", 8)
+        pdf.set_xy(250, 6)
         pdf.cell(37, 4, "LP/Am 90 Pin. 1/2023", align="R")
-        pdf.set_font("Helvetica", "B", 13)
+        pdf.set_font("Helvetica", "B", 14)
         pdf.set_xy(250, 11)
         pdf.cell(37, 7, "BLPP", align="R")
 
-        pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ................................... TAHUN ....................."
-        pdf.set_font("Helvetica", "B", 10)
+        # Garis
+        pdf.line(10, 20, 287, 20)
+
+        pep_text = f"PEPERIKSAAN {pep} TAHUN {thn}" if pep and thn else "PEPERIKSAAN ........................................ TAHUN ........................................"
+        pdf.set_font("Helvetica", "B", 11)
         pdf.set_xy(10, 22)
         pdf.cell(277, 5, pep_text, align="C")
-        pdf.set_font("Helvetica", "B", 12)
+        pdf.set_font("Helvetica", "B", 13)
         pdf.set_xy(10, 28)
         pdf.cell(277, 6, "BORANG LAPORAN PENGENDALIAN PEPERIKSAAN", align="C")
 
-        pdf.set_font("Helvetica", "", 9.5)
+        pdf.set_font("Helvetica", "", 8.2)
         pdf.set_xy(10, 36)
-        arahan = """1. Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.
-2. Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."""
-        pdf.multi_cell(277, 4.2, arahan, align="J")
+        arahan1 = "1.  Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit"
+        arahan1b = "     secara tiba-tiba, kemalangan, ditahan polis dan lain-lain."
+        arahan2 = "2.  Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada"
+        arahan2b = "     Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra"
+        arahan2c = "     Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan)."
+        pdf.cell(277, 3.8, arahan1, align="L")
+        pdf.set_xy(10, 39.5)
+        pdf.cell(277, 3.8, arahan1b, align="L")
+        pdf.set_xy(10, 43)
+        pdf.cell(277, 3.8, arahan2, align="L")
+        pdf.set_xy(10, 46.5)
+        pdf.cell(277, 3.8, arahan2b, align="L")
+        pdf.set_xy(10, 50)
+        pdf.cell(277, 3.8, arahan2c, align="L")
 
-        y1 = 58
-        # FIX: Garisan sama + tulisan centre dalam kotak - 53+129+95=277 konsisten
-        pdf.set_xy(10, y1)
+        # ===== TABLE 1 - IKUT TEMPLATE ASAL =====
+        # Total 277mm : 20% = 55.4, 38% = 105.26, 42% = 116.34
+        y1 = 56
+        w1, w2, w3 = 55, 106, 116  # 55+106+116=277
+        h_header = 14
+
         pdf.set_font("Helvetica", "B", 8.5)
-        pdf.cell(53, 14, "NO. PUSAT", border=1, align="C")
-        pdf.cell(129, 14, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
-        x3 = 192
+        # Header row
+        pdf.set_xy(10, y1)
+        pdf.cell(w1, h_header, "NO. PUSAT", border=1, align="C")
+        pdf.cell(w2, h_header, "NAMA PUSAT PEPERIKSAAN", border=1, align="C")
+        # Kotak ketiga dengan 3 baris centre
+        x3 = 10 + w1 + w2
         pdf.set_xy(x3, y1)
-        pdf.cell(95, 14, "", border=1)
-        pdf.set_font("Helvetica", "B", 6.8)
-        pdf.set_xy(x3, y1+0.5)
-        pdf.cell(95, 4.2, "NAMA KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+4.7)
-        pdf.cell(95, 4.2, "PEPERIKSAAN/KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+8.9)
-        pdf.cell(95, 4.2, "AMALI/KETUA PENTAKSIR/ASSESSOR", align="C")
+        pdf.cell(w3, h_header, "", border=1)
+        pdf.set_font("Helvetica", "B", 7.2)
+        pdf.set_xy(x3, y1+0.8)
+        pdf.cell(w3, 4, "NAMA KETUA PENGAWAS", align="C")
+        pdf.set_xy(x3, y1+4.8)
+        pdf.cell(w3, 4, "PEPERIKSAAN/KETUA PENGAWAS", align="C")
+        pdf.set_xy(x3, y1+8.8)
+        pdf.cell(w3, 4, "AMALI/KETUA PENTAKSIR/ASSESSOR", align="C")
 
-        pdf.set_xy(10, y1+10)
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(53, 14, no_pusat, border=1, align="C")
+        # Data row
+        h_data = 10
+        pdf.set_xy(10, y1+h_header)
+        pdf.set_font("Helvetica", "B", 9.5)
+        pdf.cell(w1, h_data, no_pusat, border=1, align="C")
         pdf.set_font("Helvetica", "B", 9)
-        pdf.cell(129, 14, nama_pusat[:60], border=1, align="C")
-        pdf.cell(95, 14, nama_kp[:45], border=1, align="C")
+        # Potong jika panjang tapi centre
+        pdf.cell(w2, h_data, nama_pusat[:50], border=1, align="C")
+        pdf.set_font("Helvetica", "B", 7.5)
+        pdf.cell(w3, h_data, nama_kp[:65], border=1, align="C")
 
-        y2 = y1 + 30
+        # ===== TABLE 2 - BIL, ANGKA GILIRAN, NO KP, KES, TINDAKAN =====
+        # 6% =16.6, 16%=44.3, 16%=44.3, 31%=85.87, 31%=85.87 => 277
+        y2 = y1 + h_header + h_data + 6
+        wb1, wb2, wb3, wb4, wb5 = 16, 44, 45, 86, 86
+        h2_header = 10
+
+        pdf.set_font("Helvetica", "B", 7.5)
         pdf.set_xy(10, y2)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.cell(15, 10, "BIL.", border=1, align="C")
-        pdf.cell(38, 10, "ANGKA GILIRAN", border=1, align="C")
-        pdf.set_xy(63, y2)
-        pdf.cell(42, 10, "", border=1)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(63, y2)
-        pdf.cell(42, 5, "NO. PENGENALAN", align="C")
-        pdf.set_xy(63, y2+5)
-        pdf.cell(42, 5, "DIRI", align="C")
-        pdf.set_font("Helvetica", "B", 7.5)
-        # FIX: 91+91 = sama dengan body bawah, garisan lurus
-        pdf.set_xy(105, y2)
-        pdf.cell(91, 10, "KES", border=1, align="C")
-        pdf.set_xy(196, y2)
-        pdf.cell(91, 10, "TINDAKAN", border=1, align="C")
+        pdf.cell(wb1, h2_header, "BIL.", border=1, align="C")
+        pdf.cell(wb2, h2_header, "ANGKA GILIRAN", border=1, align="C")
+        # NO PENGENALAN DIRI 2 baris
+        x_no = 10+wb1+wb2
+        pdf.set_xy(x_no, y2)
+        pdf.cell(wb3, h2_header, "", border=1)
+        pdf.set_xy(x_no, y2+1)
+        pdf.cell(wb3, 4, "NO. PENGENALAN", align="C")
+        pdf.set_xy(x_no, y2+5)
+        pdf.cell(wb3, 4, "DIRI", align="C")
+        pdf.set_xy(10+wb1+wb2+wb3, y2)
+        pdf.cell(wb4, h2_header, "KES", border=1, align="C")
+        pdf.set_xy(10+wb1+wb2+wb3+wb4, y2)
+        pdf.cell(wb5, h2_header, "TINDAKAN", border=1, align="C")
 
-        big_h = 38
-        pdf.set_xy(10, y2+10)
+        # Kotak besar kosong - 5 baris, tinggi 62mm ikut template
+        big_h = 62
+        y_body = y2 + h2_header
+        pdf.set_xy(10, y_body)
+        # Jika tiada kes, semua kosong macam template asal
         if tiada or not kes_data:
-            pdf.cell(15, big_h, "", border=1)
-            pdf.cell(38, big_h, "", border=1)
-            pdf.cell(42, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
+            pdf.cell(wb1, big_h, "", border=1)
+            pdf.cell(wb2, big_h, "", border=1)
+            pdf.cell(wb3, big_h, "", border=1)
+            pdf.cell(wb4, big_h, "", border=1)
+            pdf.cell(wb5, big_h, "", border=1)
         else:
-            pdf.cell(15, big_h, "", border=1)
-            pdf.cell(38, big_h, "", border=1)
-            pdf.cell(42, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
-            pdf.cell(91, big_h, "", border=1)
+            # Ada kes - tulis data
+            pdf.cell(wb1, big_h, "", border=1)
+            pdf.cell(wb2, big_h, "", border=1)
+            pdf.cell(wb3, big_h, "", border=1)
+            pdf.cell(wb4, big_h, "", border=1)
+            pdf.cell(wb5, big_h, "", border=1)
             pdf.set_font("Helvetica", "", 7.5)
-            for idx, k in enumerate(kes_data):
-                yy = y2+10 + 1 + idx*6
-                if yy > y2+10+big_h-3:
+            for idx, k in enumerate(kes_data[:8]):
+                yy = y_body + 1 + idx*7
+                if yy > y_body+big_h-3:
                     break
                 pdf.set_xy(10, yy)
-                pdf.cell(15, 5, str(idx+1), align="C")
-                pdf.set_xy(25, yy)
-                pdf.cell(38, 5, str(k.get('angka_giliran',''))[:18], align="C")
-                pdf.set_xy(63, yy)
-                pdf.cell(42, 5, str(k.get('no_ic',''))[:20], align="C")
-                pdf.set_xy(105, yy)
-                pdf.cell(91, 5, str(k.get('kes',''))[:55], align="L")
-                pdf.set_xy(196, yy)
-                pdf.cell(91, 5, str(k.get('tindakan',''))[:55], align="L")
+                pdf.cell(wb1, 6, str(idx+1), align="C")
+                pdf.set_xy(10+wb1, yy)
+                pdf.cell(wb2, 6, str(k.get('angka_giliran',''))[:16], align="C")
+                pdf.set_xy(10+wb1+wb2, yy)
+                pdf.cell(wb3, 6, str(k.get('no_ic',''))[:18], align="C")
+                pdf.set_xy(10+wb1+wb2+wb3, yy)
+                pdf.cell(wb4, 6, str(k.get('kes',''))[:50], align="L")
+                pdf.set_xy(10+wb1+wb2+wb3+wb4, yy)
+                pdf.cell(wb5, 6, str(k.get('tindakan',''))[:50], align="L")
 
-        yf = y2+10+big_h+4
+        # Footer - Pelapor / Pengesahan
+        yf = y_body + big_h + 6
         pdf.set_font("Helvetica", "", 8.5)
         pdf.set_xy(10, yf)
         pdf.cell(60, 5, "Pelapor:")
-        pdf.set_xy(160, yf)
+        pdf.set_xy(150, yf)
         pdf.cell(60, 5, "Pengesahan:")
-        pdf.set_font("Helvetica", "", 7.5)
+        
+        pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, yf+10)
         pdf.cell(80, 4, "Tandatangan Ketua Pengawas Peperiksaan/")
         pdf.set_xy(10, yf+14)
         pdf.cell(80, 4, "Ketua Pengawas Amali/Ketua Pentaksir/Assessor")
-        pdf.set_xy(160, yf+10)
+        pdf.set_xy(150, yf+10)
         pdf.cell(80, 4, "Tandatangan Penyelia Kawasan/Pegawai Peperiksaan")
-        pdf.line(10, yf+18, 90, yf+18)
-        pdf.line(160, yf+18, 240, yf+18)
+        
+        pdf.line(10, yf+20, 95, yf+20)
+        pdf.line(150, yf+20, 235, yf+20)
+        
         pdf.set_font("Helvetica", "", 7.5)
-        pdf.set_xy(10, yf+20)
+        pdf.set_xy(10, yf+22)
         pdf.cell(80, 5, "Tarikh: ______________________")
-        pdf.set_xy(160, yf+20)
+        pdf.set_xy(150, yf+22)
         pdf.cell(80, 5, "Tarikh: ______________________")
 
         out = pdf.output(dest='S')
