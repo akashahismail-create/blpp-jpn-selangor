@@ -423,8 +423,18 @@ def jana_blpp_html(report):
             <li>Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan).</li>
         </ol></div>
         <table style="margin-top:6px;">
-            <tr><th style="width:14%;">NO. PUSAT</th><th style="width:34%;">NAMA PUSAT PEPERIKSAAN</th><th style="width:52%;">NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS AMALI/KETUA PENTAKSIR/ASSESSOR</th></tr>
-            <tr><td style="font-weight:bold; height:22px;">{no_pusat}</td><td style="font-weight:bold;">{nama_pusat}</td><td style="font-weight:bold;">{nama_kp}</td></tr>
+            <tr>
+                <th style="width:14%; text-align:center;">NO. PUSAT</th>
+                <th style="width:34%; text-align:center;">NAMA PUSAT PEPERIKSAAN</th>
+                <th style="width:52%; text-align:center; font-size:7.5pt; line-height:1.15; padding:4px 2px;">
+                    NAMA KETUA PENGAWAS PEPERIKSAAN/KETUA PENGAWAS<br>AMALI/KETUA PENTAKSIR/ASSESSOR
+                </th>
+            </tr>
+            <tr>
+                <td style="font-weight:bold; height:22px; text-align:center;">{no_pusat}</td>
+                <td style="font-weight:bold; text-align:center;">{nama_pusat}</td>
+                <td style="font-weight:bold; text-align:center; word-break:break-word;">{nama_kp}</td>
+            </tr>
         </table>
         <table style="margin-top:8px;">
             <tr><th style="width:5%;">BIL.</th><th style="width:15%;">ANGKA GILIRAN</th><th style="width:18%;">NO. PENGENALAN DIRI</th><th style="width:31%;">KES</th><th style="width:31%;">TINDAKAN</th></tr>
@@ -506,6 +516,7 @@ def jana_blpp_pdf(report):
         pdf.multi_cell(277, 4.2, arahan, align="J")
 
         y1 = 58
+        # FIX: Garisan sama + tulisan centre dalam kotak - 53+129+95=277 konsisten
         pdf.set_xy(10, y1)
         pdf.set_font("Helvetica", "B", 8.5)
         pdf.cell(53, 14, "NO. PUSAT", border=1, align="C")
@@ -513,13 +524,13 @@ def jana_blpp_pdf(report):
         x3 = 192
         pdf.set_xy(x3, y1)
         pdf.cell(95, 14, "", border=1)
-        pdf.set_font("Helvetica", "B", 7.5)
-        pdf.set_xy(x3, y1)
-        pdf.cell(149, 3.5, "NAMA KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+3.5)
-        pdf.cell(149, 3.5, "PEPERIKSAAN/KETUA PENGAWAS", align="C")
-        pdf.set_xy(x3, y1+7)
-        pdf.cell(149, 3, "AMALI/KETUA PENTAKSIR/ASSESSOR", align="C")
+        pdf.set_font("Helvetica", "B", 6.8)
+        pdf.set_xy(x3, y1+0.5)
+        pdf.cell(95, 4.2, "NAMA KETUA PENGAWAS", align="C")
+        pdf.set_xy(x3, y1+4.7)
+        pdf.cell(95, 4.2, "PEPERIKSAAN/KETUA PENGAWAS", align="C")
+        pdf.set_xy(x3, y1+8.9)
+        pdf.cell(95, 4.2, "AMALI/KETUA PENTAKSIR/ASSESSOR", align="C")
 
         pdf.set_xy(10, y1+10)
         pdf.set_font("Helvetica", "B", 10)
@@ -541,10 +552,11 @@ def jana_blpp_pdf(report):
         pdf.set_xy(63, y2+5)
         pdf.cell(42, 5, "DIRI", align="C")
         pdf.set_font("Helvetica", "B", 7.5)
+        # FIX: 91+91 = sama dengan body bawah, garisan lurus
         pdf.set_xy(105, y2)
-        pdf.cell(87, 10, "KES", border=1, align="C")
-        pdf.set_xy(192, y2)
-        pdf.cell(95, 10, "TINDAKAN", border=1, align="C")
+        pdf.cell(91, 10, "KES", border=1, align="C")
+        pdf.set_xy(196, y2)
+        pdf.cell(91, 10, "TINDAKAN", border=1, align="C")
 
         big_h = 38
         pdf.set_xy(10, y2+10)
