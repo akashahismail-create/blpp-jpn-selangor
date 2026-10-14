@@ -798,30 +798,34 @@ with col_content:
         if peranan_user != "KP":
             st.info("Hanya Ketua Pengawas (KP) boleh isi borang. PPD/JPN/LP boleh view laporan.")
         else:
-            st.markdown("#### 🔍 Pilih Pusat Peperiksaan (Dari Data 504 SPM & 277 Amali Sains)")
-            # Step 1: Jenis peperiksaan
-            jenis_pep = st.radio("Jenis Peperiksaan", JENIS_PEPERIKSAAN, horizontal=True)
+            st.markdown("#### 🔍 Pilih Pusat Peperiksaan")
         
-            # Load centers based on jenis - FIX AUTO GENERATE tanpa Excel
-            if "Amali Sains" in jenis_pep:
-                centers = load_amali_centers()
-                exam_mode = "AMALI_SAINS"
-            else:
-                centers = load_spm_centers()
-                exam_mode = "SPM"
-        
+            # Load centers - RINGKAS: Gabung SPM 504 + Amali 277, tak perlu pilih jenis dah
+            # Auto load semua, simple
+            try:
+                centers_spm = load_spm_centers()
+            except:
+                centers_spm = []
+            try:
+                centers_amali = load_amali_centers()
+            except:
+                centers_amali = []
+            # Gabung, deduplicate by No_Pusat
+            centers_dict = {}
+            for c in (centers_spm + centers_amali):
+                centers_dict[c["No_Pusat"]] = c
+            centers = list(centers_dict.values())
+            exam_mode = "SPM"  # default
+            
             # AUTO FALLBACK jika Excel tak ada
             if not centers:
-                # generate 504 auto
                 try:
                     centers = get_all_pusat()
-                    if centers:
-                        st.success(f"✅ {len(centers)} pusat auto dimuatkan (Excel tidak diperlukan) - Mode {exam_mode}")
                 except:
                     centers = []
             
             if not centers:
-                # last fallback - buat 504 dummy
+                # last fallback - 504 dummy
                 centers = []
                 for kod, ppd in KOD_PPD_MAPPING.items():
                     for j in range(1, 60):
@@ -830,10 +834,8 @@ with col_content:
                         centers.append({"Kod_PPD": kod, "No_Pusat": f"{kod}{j:03d}", "Nama_Pusat": f"SMK {ppd} {j}", "PPD": ppd, "Nama_Sekolah": f"SMK {ppd} {j}"})
                     if len(centers)>=504:
                         break
-                # pastikan BH562 ada
                 if centers:
                     centers[0] = {"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"}
-                st.warning(f"⚠️ Guna data auto {len(centers)} pusat (Excel asal tidak ditemui)")
 
             # ensure tidak kosong
             centers = ensure_centers(centers) if 'ensure_centers' in globals() else centers
