@@ -279,7 +279,7 @@ def load_users():
     # Default users - 504 KP + admin
     users = []
     # Admin JPN
-    users.append({"id":"JPN001","nama":"Admin JPN Selangor","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
+    users.append({"id":"JPN001","nama":"JPN Selangor - Admin","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"2026","telefon":"","telefon":""})
     users.append({"id":"JPN002","nama":"JPN Selangor 2","peranan":"ADMIN_JPN","ppd":"JPN","no_pusat":"-","password":"jpn123","telefon":""})
     # LP
     users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"lp123","telefon":""})
@@ -1045,7 +1045,7 @@ if not st.session_state.login:
             else:
                 st.error(f"ID atau Kata Laluan salah! Cuba: KP001 / kp001 (Debug: {len(users)} users loaded)")
         
-        st.markdown('<div style="margin-top:14px; padding:10px; background:#F0F7FF; border-radius:8px; font-size:11px;"><b>Demo Login:</b><br/>KP: KP001 / kp001 (504 pusat)<br/>PPD: PPD01 / ppd01 (10 PPD)<br/>JPN: JPN001 / jpn123<br/>LP: LP001 / lp123<br/>BH562 / bh562 juga boleh</div>', unsafe_allow_html=True)
+        st.markdown('<div style="margin-top:14px; padding:10px; background:#F0F7FF; border-radius:8px; font-size:11px;"><b>Demo Login:</b><br/>KP: KP001 / kp001 (504 pusat)<br/>PPD: PPD01 / ppd01 (10 PPD)<br/>JPN: JPN / 2026 atau JPN001 / 2026<br/>LP: LP001 / lp123<br/>BH562 / bh562 juga boleh</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     st.stop()
 
@@ -1083,13 +1083,16 @@ with col_menu:
         <hr style="margin:12px 0;">
     ''', unsafe_allow_html=True)
     
-    menu = st.radio("Menu", 
-        ["📝 Isi Borang BLPP (KP)" if peranan_user=="KP" else "📊 Dashboard",
-         "📋 Senarai Laporan",
-         "🖨️ Cetak Borang BLPP",
-         "👥 Pengurusan Pengguna (JPN)" if peranan_user=="ADMIN_JPN" else "📈 Statistik PPD" if peranan_user=="PPD" else "📈 Statistik LP" if peranan_user=="LP" else "📈 Statistik Saya",
-         "🚪 Log Keluar"
-        ], label_visibility="collapsed")
+    # Menu ikut peranan - JPN ada Padam Laporan
+    if peranan_user == "ADMIN_JPN":
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "🗑️ Padam Laporan", "👥 Pengurusan Pengguna (JPN)", "🚪 Log Keluar"]
+    elif peranan_user == "PPD":
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📈 Statistik PPD", "🚪 Log Keluar"]
+    elif peranan_user == "LP":
+        menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📈 Statistik LP", "🚪 Log Keluar"]
+    else:
+        menu_items = ["📝 Isi Borang BLPP (KP)", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
+    menu = st.radio("Menu", menu_items, label_visibility="collapsed")
     
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
     if st.button("🚪 Log Keluar", use_container_width=True):
@@ -1870,6 +1873,115 @@ with col_content:
                 st.text_area("Mesej WhatsApp:", value=wa_text_cetak, height=150, key=f"wa_cetak_{selected_report.get('id','')}")
                 wa_link_cetak = f"https://wa.me/?text={wa_encoded_cetak}"
                 st.link_button("📱 Hantar WhatsApp", wa_link_cetak, use_container_width=True, key=f"wa_btn_{selected_report.get('id','')}")
+
+
+    # ========== MENU: PADAM LAPORAN - JPN SAHAJA (KASHAH REQUEST) ==========
+    elif menu.startswith("🗑️"):
+        st.markdown('<div class="card"><h3>🗑️ Padam Laporan - JPN Selangor</h3><p style="font-size:12px;">Function delete: satu persatu, ikut hari, ikut daerah, keseluruhan</p></div>', unsafe_allow_html=True)
+        
+        if peranan_user != "ADMIN_JPN":
+            st.error("Hanya JPN boleh padam laporan!")
+        else:
+            if not reports:
+                st.info("Tiada laporan untuk dipadam")
+            else:
+                tab1, tab2, tab3, tab4 = st.tabs(["🗑️ Satu Persatu", "📅 Ikut Hari", "📍 Ikut Daerah", "💣 Keseluruhan"])
+                
+                with tab1:
+                    st.markdown("### Padam Satu Persatu")
+                    st.caption(f"Total {len(reports)} laporan")
+                    report_options_del = {}
+                    for r in sorted(reports, key=lambda x: x.get('tarikh_submit',''), reverse=True):
+                        sidang_l = r.get('sidang','')
+                        label = f"{r.get('tarikh','')} | {sidang_l} | {r.get('no_pusat','')} | {r.get('nama_pusat','')} | {r.get('ppd','')} | {r.get('id','')}"
+                        report_options_del[label] = r
+                    
+                    sel_del = st.selectbox("Pilih Laporan untuk Dipadam", list(report_options_del.keys()), key="del_one")
+                    if sel_del:
+                        r_del = report_options_del[sel_del]
+                        st.warning(f"Anda akan padam: {sel_del}")
+                        st.json({k: r_del.get(k,'') for k in ['id','tarikh','sidang','no_pusat','nama_pusat','ppd','tarikh_submit']})
+                        confirm = st.checkbox("Saya confirm nak padam laporan ini", key="confirm_one")
+                        if st.button("🗑️ Padam Laporan Ini", type="primary", key="btn_del_one"):
+                            if confirm:
+                                reports = [r for r in reports if r.get('id') != r_del.get('id')]
+                                save_reports(reports)
+                                st.success(f"✅ Laporan {r_del.get('id')} telah dipadam!")
+                                st.rerun()
+                            else:
+                                st.error("Sila tick confirm dulu")
+                
+                with tab2:
+                    st.markdown("### Padam Ikut Hari")
+                    tarikh_list = sorted(list(set([r.get('tarikh','') for r in reports if r.get('tarikh')])), reverse=True)
+                    if tarikh_list:
+                        sel_tarikh_del = st.selectbox("Pilih Tarikh", tarikh_list, key="del_tarikh")
+                        count_tarikh = len([r for r in reports if r.get('tarikh')==sel_tarikh_del])
+                        st.info(f"📅 {count_tarikh} laporan pada {sel_tarikh_del} akan dipadam")
+                        # Preview
+                        preview = [r for r in reports if r.get('tarikh')==sel_tarikh_del][:5]
+                        for r in preview:
+                            st.caption(f"- {r.get('no_pusat')} | {r.get('nama_pusat')} | {r.get('sidang','')} | {r.get('id')}")
+                        if count_tarikh > 5:
+                            st.caption(f"... dan {count_tarikh-5} lagi")
+                        
+                        confirm2 = st.checkbox(f"Saya confirm nak padam SEMUA {count_tarikh} laporan pada {sel_tarikh_del}", key="confirm_tarikh")
+                        if st.button(f"🗑️ Padam Semua Laporan Tarikh {sel_tarikh_del}", type="primary", key="btn_del_tarikh"):
+                            if confirm2:
+                                reports = [r for r in reports if r.get('tarikh') != sel_tarikh_del]
+                                save_reports(reports)
+                                st.success(f"✅ {count_tarikh} laporan pada {sel_tarikh_del} telah dipadam!")
+                                st.rerun()
+                            else:
+                                st.error("Sila tick confirm dulu")
+                    else:
+                        st.info("Tiada tarikh")
+                
+                with tab3:
+                    st.markdown("### Padam Ikut Daerah (PPD)")
+                    ppd_list_del = sorted(list(set([r.get('ppd','') for r in reports if r.get('ppd')])))
+                    if ppd_list_del:
+                        sel_ppd_del = st.selectbox("Pilih PPD/Daerah", ppd_list_del, key="del_ppd")
+                        count_ppd = len([r for r in reports if r.get('ppd')==sel_ppd_del])
+                        st.info(f"📍 {count_ppd} laporan PPD {sel_ppd_del} akan dipadam")
+                        preview_ppd = [r for r in reports if r.get('ppd')==sel_ppd_del][:5]
+                        for r in preview_ppd:
+                            st.caption(f"- {r.get('tarikh')} | {r.get('no_pusat')} | {r.get('nama_pusat')} | {r.get('sidang','')} | {r.get('id')}")
+                        if count_ppd > 5:
+                            st.caption(f"... dan {count_ppd-5} lagi")
+                        
+                        confirm3 = st.checkbox(f"Saya confirm nak padam SEMUA {count_ppd} laporan PPD {sel_ppd_del}", key="confirm_ppd")
+                        if st.button(f"🗑️ Padam Semua Laporan PPD {sel_ppd_del}", type="primary", key="btn_del_ppd"):
+                            if confirm3:
+                                reports = [r for r in reports if r.get('ppd') != sel_ppd_del]
+                                save_reports(reports)
+                                st.success(f"✅ {count_ppd} laporan PPD {sel_ppd_del} telah dipadam!")
+                                st.rerun()
+                            else:
+                                st.error("Sila tick confirm dulu")
+                    else:
+                        st.info("Tiada PPD")
+                
+                with tab4:
+                    st.markdown("### Padam Keseluruhan Laporan")
+                    st.error(f"⚠️ AMARAN: Ini akan padam SEMUA {len(reports)} laporan dalam sistem! Tidak boleh undo!")
+                    st.json({
+                        "total_laporan": len(reports),
+                        "tarikh_ada": sorted(list(set([r.get('tarikh','') for r in reports]))),
+                        "ppd_ada": sorted(list(set([r.get('ppd','') for r in reports])))
+                    })
+                    confirm_text = st.text_input("Taip 'PADAM SEMUA' untuk confirm", key="confirm_all_text")
+                    confirm4 = st.checkbox(f"Saya FAHAM dan confirm nak padam SEMUA {len(reports)} laporan", key="confirm_all")
+                    if st.button("💣 PADAM KESELURUHAN LAPORAN", type="primary", key="btn_del_all"):
+                        if confirm_text == "PADAM SEMUA" and confirm4:
+                            total = len(reports)
+                            reports = []
+                            save_reports(reports)
+                            st.success(f"✅ {total} laporan telah dipadam keseluruhan!")
+                            st.rerun()
+                        else:
+                            st.error("Sila taip 'PADAM SEMUA' dan tick confirm")
+    
 
     # ========== MENU 4: PENGURUSAN PENGGUNA (JPN) / STATISTIK ==========
     else:
