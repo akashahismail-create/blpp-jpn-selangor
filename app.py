@@ -2022,6 +2022,66 @@ with col_content:
                     if sel_tarikh != "Semua Tarikh":
                         filtered_by_tarikh = [r for r in available_reports if r.get('tarikh')==sel_tarikh]
                     
+                    # ========== BUTTON CETAK PUKAL PDF - JPN ==========
+                    if sel_tarikh != "Semua Tarikh" and len(filtered_by_tarikh)>0:
+                        st.markdown("---")
+                        st.markdown(f"### 📥 Download Pukal PDF - Tarikh {sel_tarikh}")
+                        st.info(f"📅 {len(filtered_by_tarikh)} laporan pada {sel_tarikh} untuk PPD {sel_ppd} sedia untuk download pukal. Klik butang di bawah, sistem akan download ZIP berisi semua laporan PDF (ada logo) pada hari tersebut. Simpan ZIP di folder Desktop anda.")
+                        
+                        col_dl1, col_dl2 = st.columns([2,1])
+                        with col_dl1:
+                            if st.button(f"📦 Jana ZIP Pukal PDF ({len(filtered_by_tarikh)} laporan)", key=f"bulk_{sel_tarikh}_{sel_ppd}", type="primary", use_container_width=True):
+                                with st.spinner(f"Sedang jana {len(filtered_by_tarikh)} PDF dengan logo untuk tarikh {sel_tarikh}..."):
+                                    zip_data, count = create_bulk_pdf_zip_by_date(available_reports, sel_tarikh)
+                                    if zip_data:
+                                        st.session_state[f"bulk_zip_{sel_tarikh}"] = zip_data
+                                        st.session_state[f"bulk_count_{sel_tarikh}"] = count
+                                        st.success(f"✅ {count} laporan berjaya dijana dengan logo! Klik butang Download di sebelah.")
+                                    else:
+                                        st.error("Gagal jana ZIP")
+                        
+                        with col_dl2:
+                            zip_key = f"bulk_zip_{sel_tarikh}"
+                            if zip_key in st.session_state:
+                                st.download_button(
+                                    label=f"⬇️ Download ZIP ({st.session_state.get(f'bulk_count_{sel_tarikh}',0)} fail)",
+                                    data=st.session_state[zip_key],
+                                    file_name=f"BLPP_PUKAL_{sel_ppd}_{sel_tarikh}_{len(filtered_by_tarikh)}laporan.zip",
+                                    mime="application/zip",
+                                    key=f"download_zip_{sel_tarikh}",
+                                    use_container_width=True,
+                                    help="Simpan di Desktop anda - ZIP mengandungi semua PDF laporan ada logo"
+                                )
+                                st.caption("💡 Tip: Save ZIP di Desktop, extract, semua PDF ada logo dalam folder")
+                    elif sel_tarikh == "Semua Tarikh" and len(available_reports)>0:
+                        st.markdown("---")
+                        st.markdown(f"### 📥 Download Pukal Ikut Tarikh - PPD {sel_ppd}")
+                        st.caption(f"Total {len(available_reports)} laporan. Pilih tarikh spesifik untuk download pukal.")
+                        from collections import Counter
+                        tarikh_counts = Counter([r.get('tarikh','') for r in available_reports])
+                        for t, c in sorted(tarikh_counts.items(), reverse=True)[:10]:
+                            col_t1, col_t2, col_t3 = st.columns([2,1,1])
+                            with col_t1:
+                                st.write(f"📅 {t} - {c} laporan")
+                            with col_t2:
+                                if st.button(f"Jana ZIP", key=f"jana_{t}_{sel_ppd}"):
+                                    with st.spinner(f"Jana {c} PDF ada logo..."):
+                                        zip_data, count = create_bulk_pdf_zip_by_date(available_reports, t)
+                                        if zip_data:
+                                            st.session_state[f"bulk_zip_{t}"] = zip_data
+                                            st.session_state[f"bulk_count_{t}"] = count
+                                            st.success(f"✅ {count} laporan {t} sedia ada logo!")
+                            with col_t3:
+                                zk = f"bulk_zip_{t}"
+                                if zk in st.session_state:
+                                    st.download_button(
+                                        label=f"⬇️ ZIP {c} fail",
+                                        data=st.session_state[zk],
+                                        file_name=f"BLPP_PUKAL_{sel_ppd}_{t}_{c}laporan.zip",
+                                        mime="application/zip",
+                                        key=f"dl_{t}_{sel_ppd}"
+                                    )
+                    
                     # LANGKAH 3: PILIH SEKOLAH/PUSAT - hanya pusat yang telah hantar laporan
                     pusat_map = {}
                     for r in filtered_by_tarikh:
