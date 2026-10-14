@@ -390,6 +390,13 @@ def jana_blpp_html(report):
         for _ in range(max(0, 5 - len(kes_data))):
             kes_rows += "<tr><td style='min-height:32px; height:auto;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
 
+    # Signature image untuk HTML
+    sig_b64_html = report.get('tandatangan_b64','')
+    if sig_b64_html:
+        sig_img_html = f'<img src="data:image/png;base64,{sig_b64_html}" style="max-height:55px; max-width:200px;">'
+    else:
+        sig_img_html = '<div style="height:55px;"></div>'
+    
     html = f"""
     <!DOCTYPE html><html><head><meta charset="utf-8">
     <style>
@@ -448,7 +455,7 @@ def jana_blpp_html(report):
             {kes_rows}
         </table>
         <div class="footer">
-            <div>Pelapor:<br><br><br>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: _________________________________</div>
+            <div>Pelapor:<br><div style="height:60px; margin:5px 0;">{sig_img_html}</div>___________________________________________<br>Tandatangan Ketua Pengawas Peperiksaan/<br>Ketua Pengawas Amali/Ketua Pentaksir/Assessor<br><br>Tarikh: _________________________________</div>
             <div>Pengesahan:<br><br><br>___________________________________________<br>Tandatangan Penyelia Kawasan/Pegawai Peperiksaan<br><br><br>Tarikh: _________________________________</div>
         </div>
     </div></body></html>
@@ -869,6 +876,33 @@ def jana_blpp_pdf(report):
         pdf.cell(60, 5, "Pelapor:")
         pdf.set_xy(150, yf)
         pdf.cell(60, 5, "Pengesahan:")
+        
+        # ===== LETAK TANDATANGAN DIGITAL PNG DI ATAS GARISAN - FIX KASHAH =====
+        sig_b64 = report.get('tandatangan_b64','')
+        if sig_b64:
+            try:
+                import base64
+                from io import BytesIO
+                # Decode base64
+                img_bytes = base64.b64decode(sig_b64)
+                # Simpan ke file temp untuk FPDF
+                import os, tempfile
+                tmp_path = os.path.join(tempfile.gettempdir(), f"sig_{report.get('id','tmp')}.png")
+                with open(tmp_path, 'wb') as f:
+                    f.write(img_bytes)
+                # Letak gambar tandatangan di atas garisan - di bahagian Ketua Pengawas
+                # Posisi: x=10, y=yf+2, lebar 50mm tinggi 15mm
+                pdf.image(tmp_path, x=12, y=yf+2, w=45, h=16)
+                # Optional: delete temp file
+                try:
+                    os.remove(tmp_path)
+                except:
+                    pass
+            except Exception as e:
+                # Jika gagal, tulis nama sahaja sebagai fallback
+                pdf.set_font("Helvetica", "I", 6)
+                pdf.set_xy(10, yf+2)
+                pdf.cell(50, 4, f"[Tandatangan: {report.get('pelapor','')}]")
         
         pdf.set_font("Helvetica", "", 7)
         pdf.set_xy(10, yf+10)
