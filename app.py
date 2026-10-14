@@ -1230,8 +1230,28 @@ with col_content:
                     kod_ppd_display = st.text_input("Kod PPD", value=auto_kod_ppd, disabled=True)
                 with colC:
                     tarikh = st.date_input("Tarikh Laporan", value=date.today())
-                    # FIX KASHAH: Tambah Sidang - 3 sidang
-                    sidang = st.selectbox("Sidang", ["Sidang 1 (Pagi)", "Sidang 2 (Petang)", "Sidang 3 (Malam / Khas)"], help="Pilih sidang peperiksaan - 3 sidang sehari")
+                    # FIX KASHAH: Sidang ikut jenis peperiksaan
+                    # SPM I: 3 sidang - 8-10pg, 10pg-1tgh, 2-5ptg
+                    # Amali Sains: 4 sidang - semua 8pg-1tgh
+                    if "Amali" in peperiksaan or exam_mode == "Amali":
+                        # Amali Sains - 4 sidang, 8pg-1tgh sahaja, tulis sidang berapa sahaja
+                        sidang_options = [
+                            "Sidang 1",
+                            "Sidang 2", 
+                            "Sidang 3",
+                            "Sidang 4"
+                        ]
+                        sidang_help = "Amali Sains: 4 sidang, semua dari 8 pagi hingga 1 tengah hari"
+                    else:
+                        # SPM I - 3 sidang dengan masa betul
+                        sidang_options = [
+                            "Sidang 1 (8.00 - 10.00 pagi)",
+                            "Sidang 2 (10.00 pagi - 1.00 tengah hari)",
+                            "Sidang 3 (2.00 - 5.00 petang)"
+                        ]
+                        sidang_help = "SPM: Sidang 1=8-10pg, Sidang 2=10pg-1tgh, Sidang 3=2-5ptg"
+                    
+                    sidang = st.selectbox("Sidang", sidang_options, help=sidang_help)
                     nama_kp = st.text_input("Nama KP", value="")
                     # Simpan exam_mode untuk backend
                     st.text_input("Jenis Peperiksaan (System)", value=exam_mode, disabled=True, key="exam_mode_hidden")
