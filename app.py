@@ -1885,11 +1885,37 @@ with col_content:
         st.markdown(f"**Jumlah Laporan: {len(filtered)}** (dari {len(reports)} keseluruhan) | 504 Pusat | 20 Hari Peperiksaan")
     
         if filtered:
-            df = pd.DataFrame(filtered)
-            # Show table
-            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes"]
+            # OPTIMIZE LAJU: Pagination 100 per page + jangan load signature
+            # Buang tandatangan_b64 dari dataframe untuk laju (signature besar)
+            filtered_light = []
+            for r in filtered:
+                r_light = {k:v for k,v in r.items() if k not in ["tandatangan_b64", "kes_data"]}
+                r_light["jumlah_kes"] = 0 if r.get("tiada_kes") else len(r.get("kes_data",[]))
+                filtered_light.append(r_light)
+            
+            df = pd.DataFrame(filtered_light)
+            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes","jumlah_kes"]
             existing_cols = [c for c in display_cols if c in df.columns]
-            st.dataframe(df[existing_cols].sort_values("tarikh", ascending=False), use_container_width=True, height=400)
+            df_display = df[existing_cols].sort_values("tarikh", ascending=False) if "tarikh" in df.columns else df
+            
+            # PAGINATION 100 per page untuk laju
+            total_rows = len(df_display)
+            page_size = 100
+            total_pages = (total_rows + page_size -1)//page_size
+            if total_pages>1:
+                col_page1, col_page2 = st.columns([3,1])
+                with col_page1:
+                    page = st.slider(f"Halaman (Total {total_rows} laporan, {total_pages} halaman, 100 per halaman)", 1, total_pages, 1, key="page_senarai")
+                with col_page2:
+                    st.metric("Halaman", f"{page}/{total_pages}")
+                start_idx = (page-1)*page_size
+                end_idx = start_idx + page_size
+                df_page = df_display.iloc[start_idx:end_idx]
+            else:
+                df_page = df_display
+            
+            st.dataframe(df_page, use_container_width=True, height=400)
+            st.caption(f"Paparan {len(df_page)} dari {total_rows} laporan (Laju mode: tanpa signature & kes_data penuh)")
         
             # Download Excel
             output = BytesIO()
@@ -2287,8 +2313,43 @@ with col_content:
                 with col4:
                     st.metric("Ada Kes", ada_kes)
             
-                st.markdown("#### Laporan Ikut PPD (10 PPD)")
-                ppd_stats = []
+                st.markdown("#### Laporan Ikut PPD (10 PPD) - Laju Mode (cache)")
+                # Cache PPD stats untuk laju
+                @st.cache_data(ttl=60, show_spinner=False)
+                def get_ppd_stats_cached(reports_mtime):
+                    # Guna index precompute
+                    stats = []
+                    # Build index sekali
+                    ppd_index = {}
+                    for r in reports:
+                        ppd = str(r.get("ppd","")).strip()
+                        kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).upper()
+                        # Robust mapping
+                        if kod == "BK":
+                            ppd = "Petaling Utama"
+                        elif kod == "BH" and ppd in ["", "BK"]:
+                            ppd = "Petaling Perdana"
+                        ppd_index[ppd] = ppd_index.get(ppd, 0) + 1
+                    for ppd in PPD_LIST:
+                        kod = PPD_TO_KOD.get(ppd, "")
+                        count = ppd_index.get(ppd, 0)
+                        # Also count via kod if not found
+                        if count==0 and kod:
+                            for r in reports:
+                                r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).upper()
+                                if r_kod == kod:
+                                    count+=1
+                                elif ppd=="Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
+                                    count+=1
+                        stats.append({"PPD": ppd, "Laporan": count, "Kod": kod})
+                    return stats
+                
+                try:
+                    mtime_reports = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
+                except:
+                    mtime_reports = 0
+                ppd_stats_cached = get_ppd_stats_cached(mtime_reports)
+                ppd_stats = ppd_stats_cached
                 for ppd in PPD_LIST:
                     kod = PPD_TO_KOD.get(ppd, "")
                     def match_count(r):
