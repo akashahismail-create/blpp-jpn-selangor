@@ -865,32 +865,34 @@ with col_content:
                     auto_no_pusat = ""
                     auto_kod_ppd = ""
             
-            # Maklumat Pusat - BOLEH EDIT oleh KP (sebab 1 sekolah banyak pusat)
-            st.markdown("#### 📝 Maklumat Pusat (Boleh Edit - Ketua Pengawas Isi)")
-            st.info("💡 Satu sekolah mungkin ada banyak pusat. KP boleh edit No. Pusat & Nama Pusat di bawah ikut keperluan sebenar.")
+            # Maklumat Pusat - FIX BUG: Pilih ALAM MEGAH 2 keluar KOLEJ ISLAM (stale session_state)
+            # SOLUTION: Guna dynamic key supaya bila sekolah bertukar, kotak edit refresh
+            st.markdown("#### 📝 Maklumat Pusat (Auto dari Excel + Boleh Edit)")
+            st.info(f"💡 Data Excel: {selected_sekolah} = No Pusat {auto_no_pusat} | Kod {auto_kod_ppd}. Jika 1 sekolah ada banyak pusat (contoh BA097 & BA098 dua-dua KOLEJ ISLAM), KP boleh edit di bawah.")
+            
+            # FIX: Key include selected_sekolah supaya tak stale bila tukar sekolah
             colM1, colM2, colM3 = st.columns([1, 2, 1])
             with colM1:
-                # Boleh edit - tidak auto disabled lagi
-                edit_no_pusat = st.text_input("No. Pusat (Edit jika perlu)", value=auto_no_pusat, key="edit_no_pusat_input", help="Auto dari data, tapi KP boleh tukar jika sekolah ada banyak pusat")
+                edit_no_pusat = st.text_input("No. Pusat (Boleh Edit)", value=auto_no_pusat, key=f"edit_no_{selected_sekolah}_{selected_ppd}", help=f"Auto {auto_no_pusat} dari Excel. Boleh tukar jika sekolah ada banyak pusat seperti BA097/BA098")
             with colM2:
-                edit_nama_sekolah = st.text_input("Nama Sekolah/Pusat (Edit jika perlu)", value=selected_sekolah, key="edit_nama_sekolah_input", help="Nama penuh akan nampak di sini, boleh edit")
+                edit_nama_sekolah = st.text_input("Nama Pusat (Boleh Edit)", value=selected_sekolah, key=f"edit_nama_{selected_sekolah}_{selected_ppd}", help="Full name - boleh edit")
             with colM3:
-                edit_kod_ppd = st.text_input("Kod PPD", value=auto_kod_ppd, key="edit_kod_input")
+                edit_kod_ppd = st.text_input("Kod PPD", value=auto_kod_ppd, key=f"edit_kod_{selected_sekolah}_{selected_ppd}")
             
-            # Override auto dengan yang diedit
-            final_no_pusat = edit_no_pusat if edit_no_pusat else auto_no_pusat
-            final_nama_sekolah = edit_nama_sekolah if edit_nama_sekolah else selected_sekolah
-            final_kod_ppd = edit_kod_ppd if edit_kod_ppd else auto_kod_ppd
+            final_no_pusat = edit_no_pusat.strip() if edit_no_pusat.strip() else auto_no_pusat
+            final_nama_sekolah = edit_nama_sekolah.strip() if edit_nama_sekolah.strip() else selected_sekolah
+            final_kod_ppd = edit_kod_ppd.strip() if edit_kod_ppd.strip() else auto_kod_ppd
             
-            # Jika belum pilih
             if not final_no_pusat or not final_nama_sekolah:
-                st.info("👆 Sila pilih Daerah dan Nama Sekolah untuk papar borang BLPP")
+                st.info("👆 Sila pilih Daerah dan Nama Sekolah")
                 st.stop()
             
-            # Guna final values untuk seterusnya
             auto_no_pusat = final_no_pusat
             selected_sekolah = final_nama_sekolah
             auto_kod_ppd = final_kod_ppd
+            
+            # Debug info supaya nampak data match
+            st.caption(f"✅ Akan guna: {auto_no_pusat} - {selected_sekolah} - {auto_kod_ppd} (dari Excel: BH133=ALAM MEGAH 2, BA097=KOLEJ ISLAM)")
         
             # Form BLPP sebenar
             st.markdown("---")
@@ -899,7 +901,12 @@ with col_content:
             with st.form("blpp_form", clear_on_submit=False):
                 colA, colB, colC = st.columns(3)
                 with colA:
-                    peperiksaan = st.selectbox("Peperiksaan", PEPERIKSAAN_LIST, index=0 if exam_mode=="SPM" else 4)
+                    # FIX: Cari index Ujian Amali Sains secara dynamic, bukan hardcode 4
+                    try:
+                        amali_idx = PEPERIKSAAN_LIST.index("Ujian Amali Sains SPM")
+                    except:
+                        amali_idx = 2 if len(PEPERIKSAAN_LIST) > 2 else 0
+                    peperiksaan = st.selectbox("Peperiksaan", PEPERIKSAAN_LIST, index=0 if exam_mode=="SPM" else amali_idx)
                     tahun = st.text_input("Tahun", value="2026")
                     no_pusat = st.text_input("No. Pusat (Auto dari Data)", value=auto_no_pusat, disabled=False)
                 with colB:
