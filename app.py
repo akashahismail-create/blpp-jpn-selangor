@@ -1234,7 +1234,7 @@ with col_content:
                 st.markdown("### ✍️ Tandatangan Digital & Pengesahan Pelapor")
                 colT1, colT2 = st.columns([1,1])
                 with colT1:
-                    pelapor_nama = st.text_input("Nama Pelapor (KP)", value=user["nama"])
+                    pelapor_nama = st.text_input("Nama Pelapor (Ketua Pengawas)", value=user.get("nama_kp","") or "", placeholder="Contoh: AKASHAH BIN ISMAIL")
                     telefon_kp = st.text_input("No. Telefon KP (untuk WhatsApp PPD)", placeholder="012-3456789", value=user.get("telefon",""))
                     st.markdown("**Muat Naik Tandatangan Digital**")
                     st.caption("KP boleh upload gambar tandatangan atau lukis tandatangan")
@@ -1304,18 +1304,32 @@ with col_content:
                         st.markdown("Atau taip nama sebagai tandatangan digital:")
                         tt_text = st.text_input("Tandatangan Text", value=user["nama"], key="tt_text")
                         if tt_text:
-                            # Generate simple signature image from text
+                            # Generate signature image - HITAM BOLD BESAR, bukan biru kecil
                             from PIL import ImageDraw, ImageFont
-                            sig_img = Image.new('RGB', (400, 100), color='white')
+                            # Canvas lebih besar untuk signature jelas
+                            sig_img = Image.new('RGBA', (500, 120), color=(255,255,255,0))
                             d = ImageDraw.Draw(sig_img)
+                            # Cuba font bold, jika tiada guna default tapi besar
                             try:
-                                d.text((10,30), tt_text, fill=(13,71,161), font=ImageFont.load_default())
+                                # Cuba guna font yang lebih tebal
+                                font_large = ImageFont.truetype("DejaVuSans-Bold.ttf", 36)
                             except:
-                                d.text((10,30), tt_text, fill=(13,71,161))
+                                try:
+                                    font_large = ImageFont.load_default()
+                                except:
+                                    font_large = None
+                            # Tulis nama dengan hitam pekat, besar
+                            if font_large:
+                                d.text((10, 30), tt_text, fill=(0,0,0,255), font=font_large)
+                            else:
+                                d.text((10, 30), tt_text, fill=(0,0,0,255))
+                            # Convert ke RGBA dengan background transparent
                             buf = BytesIO()
-                            sig_img.save(buf, format="PNG")
+                            sig_img.save(buf, format="PNG", optimize=True)
                             tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                            st.image(sig_img, width=250)
+                            st.image(sig_img, width=300, caption=f"Signature: {tt_text}")
+                            # Juga set pelapor_nama preview
+                            st.info(f"Nama Pelapor akan jadi: {tt_text.upper()}")
 
             
                 submitted = st.form_submit_button("📤 Hantar Laporan BLPP", type="primary", use_container_width=True)
@@ -1324,6 +1338,25 @@ with col_content:
                     if not no_pusat or not nama_pusat:
                         st.error("Sila isi No. Pusat dan Nama Pusat!")
                     else:
+                        # FIX: Jika Ketua Pengawas isi Tandatangan Text, guna itu sebagai Nama Pelapor
+                        # Jika tt_text ada dan bukan nama sekolah default, override pelapor_nama
+                        try:
+                            tt_text_val = st.session_state.get('tt_text','') or tt_text
+                        except:
+                            tt_text_val = tt_text if 'tt_text' in locals() else ''
+                        
+                        # Jika ada tandatangan text yang diisi, dan pelapor_nama masih nama sekolah, guna tt_text
+                        if tt_text_val and tt_text_val.strip() != "" and tt_text_val != user.get("nama",""):
+                            # Jika pelapor_nama masih sama dengan nama sekolah atau kosong, override dengan tt_text
+                            if pelapor_nama == user.get("nama","") or pelapor_nama.strip() == "" or "SEKOLAH" in pelapor_nama.upper():
+                                pelapor_nama = tt_text_val.strip().upper()
+                        
+                        # Pastikan pelapor_nama tidak mengandungi KP KP001 - SEKOLAH...
+                        if "SEKOLAH" in pelapor_nama.upper() and "KP" in pelapor_nama.upper():
+                            # Jika masih ada format sekolah, cuba guna tt_text jika ada
+                            if tt_text_val and tt_text_val.strip() != "":
+                                pelapor_nama = tt_text_val.strip().upper()
+                        
                         new_report = {
                             "id": f"BLPP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{no_pusat}",
                             "peperiksaan": peperiksaan,
