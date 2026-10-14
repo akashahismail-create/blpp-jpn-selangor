@@ -686,23 +686,34 @@ def jana_blpp_pdf(report):
             # Jangan paksa 62mm kalau 1 kes sahaja - biar flexible (request Kashah)
             # total_table_h kekal ikut panjang sebenar
             
-            # Second pass: lukis setiap baris dengan border flexible + auto page break
+            # Second pass: lukis setiap baris dengan border flexible + ISI PENUH PAGE 1 DAHULU
             row_y = y_body
-            page_limit = 185
+            page_limit = 195  # Guna penuh page 1 sampai hampir bawah (A4 landscape 210mm - margin)
             for idx, k in enumerate(kes_data):
                 kes_text = str(k.get('kes','')).strip()
                 tind_text = str(k.get('tindakan','')).strip()
                 pre_row_h = row_heights[idx]
                 
-                # AUTO PAGE BREAK: Jika row akan terkeluar page, buat page baru
-                if row_y + pre_row_h > page_limit:
+                # PENUHKAN PAGE 1 DAHULU: Kira baki ruang di page 1
+                remaining_space = page_limit - row_y
+                
+                # Dapatkan lines untuk KES dan TINDAKAN
+                kes_lines_all = get_wrapped_lines(pdf, str(k.get('kes','')).strip(), wb4-2)
+                tind_lines_all = get_wrapped_lines(pdf, str(k.get('tindakan','')).strip(), wb5-2)
+                total_lines_needed = max(len(kes_lines_all), len(tind_lines_all))
+                pre_row_h = max(14, total_lines_needed * 4 + 6)
+                
+                # Jika row muat di page semasa, lukis terus
+                # Jika tidak muat TAPI masih ada ruang > 25mm di page 1, kita split - isi penuh page 1 dulu
+                need_split = pre_row_h > remaining_space and remaining_space > 25 and row_y > y_body  # ada isi di page 1
+                
+                if pre_row_h > page_limit - row_y and row_y + 15 > page_limit - 30:
+                    # Memang tak muat langsung, buat page baru terus
                     pdf.add_page()
-                    # Sambungan header kecil
                     pdf.set_font("Helvetica", "B", 8)
                     pdf.set_xy(10, 10)
                     pdf.cell(277, 5, f"SAMBUNGAN - {no_pusat} | Page {pdf.page_no()}", align="C")
                     row_y = 18
-                    # Redraw table header untuk kesinambungan
                     pdf.set_font("Helvetica", "B", 7.5)
                     pdf.set_xy(x0, row_y)
                     pdf.cell(wb1, 8, "BIL.", border=1, align="C")
@@ -715,11 +726,85 @@ def jana_blpp_pdf(report):
                     pdf.set_xy(x4, row_y)
                     pdf.cell(wb5, 8, "TINDAKAN (Sambungan)", border=1, align="C")
                     row_y += 8
+                    # Recalc remaining after new page
+                    remaining_space = page_limit - row_y
+                    need_split = False
                 
-                # Lukis dulu border sementara dengan pre height
                 pdf.set_line_width(0.35)
-                # Simpan Y
                 start_y = row_y
+                
+                # Jika perlu split, kita akan lukis sebahagian di page 1, baki di page 2
+                if need_split:
+                    # Kira berapa baris muat di page 1
+                    lines_fit = max(1, int((remaining_space - 6) / 4))
+                    kes_part1 = "\n".join(kes_lines_all[:lines_fit])
+                    kes_part2 = "\n".join(kes_lines_all[lines_fit:])
+                    tind_part1 = "\n".join(tind_lines_all[:lines_fit])
+                    tind_part2 = "\n".join(tind_lines_all[lines_fit:])
+                    
+                    # Lukis part 1 di page 1 - PENUHKAN PAGE 1
+                    part1_h = remaining_space
+                    pdf.rect(x0, start_y, wb1, part1_h)
+                    pdf.rect(x1, start_y, wb2, part1_h)
+                    pdf.rect(x2, start_y, wb3, part1_h)
+                    pdf.rect(x3_b, start_y, wb4, part1_h)
+                    pdf.rect(x4, start_y, wb5, part1_h)
+                    
+                    pdf.set_font("Helvetica", "", 7)
+                    pdf.set_xy(x0, start_y+1)
+                    pdf.cell(wb1, 5, str(idx+1), align="C")
+                    pdf.set_xy(x1, start_y+1)
+                    pdf.cell(wb2, 5, str(k.get('angka_giliran',''))[:20], align="C")
+                    pdf.set_xy(x2, start_y+1)
+                    pdf.cell(wb3, 5, str(k.get('no_ic',''))[:20], align="C")
+                    pdf.set_xy(x3_b+1, start_y+1)
+                    pdf.multi_cell(wb4-2, 4, kes_part1, align="L")
+                    pdf.set_xy(x4+1, start_y+1)
+                    pdf.multi_cell(wb5-2, 4, tind_part1, align="L")
+                    
+                    # Page baru untuk sambungan
+                    pdf.add_page()
+                    pdf.set_font("Helvetica", "B", 8)
+                    pdf.set_xy(10, 10)
+                    pdf.cell(277, 5, f"SAMBUNGAN - {no_pusat} | Page {pdf.page_no()} - PENUHKAN PAGE 1 SELESAI", align="C")
+                    row_y = 18
+                    pdf.set_font("Helvetica", "B", 7.5)
+                    pdf.set_xy(x0, row_y)
+                    pdf.cell(wb1, 8, "BIL.", border=1, align="C")
+                    pdf.set_xy(x1, row_y)
+                    pdf.cell(wb2, 8, "ANGKA GILIRAN", border=1, align="C")
+                    pdf.set_xy(x2, row_y)
+                    pdf.cell(wb3, 8, "NO. PENGENALAN DIRI", border=1, align="C")
+                    pdf.set_xy(x3_b, row_y)
+                    pdf.cell(wb4, 8, "KES (Sambungan)", border=1, align="C")
+                    pdf.set_xy(x4, row_y)
+                    pdf.cell(wb5, 8, "TINDAKAN (Sambungan)", border=1, align="C")
+                    row_y += 8
+                    start_y = row_y
+                    
+                    # Kira tinggi baki
+                    kes_lines_remain = get_wrapped_lines(pdf, kes_part2, wb4-2)
+                    tind_lines_remain = get_wrapped_lines(pdf, tind_part2, wb5-2)
+                    remain_h = max(14, max(len(kes_lines_remain), len(tind_lines_remain)) * 4 + 6)
+                    
+                    # Lukis baki di page 2
+                    pdf.rect(x0, start_y, wb1, remain_h)
+                    pdf.rect(x1, start_y, wb2, remain_h)
+                    pdf.rect(x2, start_y, wb3, remain_h)
+                    pdf.rect(x3_b, start_y, wb4, remain_h)
+                    pdf.rect(x4, start_y, wb5, remain_h)
+                    
+                    pdf.set_font("Helvetica", "", 7)
+                    pdf.set_xy(x0, start_y+1)
+                    pdf.cell(wb1, 5, f"{idx+1} samb.", align="C")
+                    pdf.set_xy(x3_b+1, start_y+1)
+                    pdf.multi_cell(wb4-2, 4, kes_part2, align="L")
+                    pdf.set_xy(x4+1, start_y+1)
+                    pdf.multi_cell(wb5-2, 4, tind_part2, align="L")
+                    
+                    row_y = start_y + remain_h
+                    continue  # dah siap split, next kes
+                
                 
                 # Isi data - untuk kira actual height
                 pdf.set_font("Helvetica", "", 7)
@@ -888,17 +973,17 @@ div[data-testid="stSidebarNav"] {display: none !important;}
 col_menu, col_content = st.columns([1.1, 4], gap="medium")
 
 with col_menu:
-    # FIX SYNC: Kalau KP dah pilih pusat, papar pusat sebenar yang dipilih, bukan default Klang
+    # FIX INSTANT SYNC - baca dari session_state terkini, terus tukar bila pilih
     current_ppd_display = st.session_state.get('current_ppd', user.get('ppd','-'))
     current_sekolah_display = st.session_state.get('current_sekolah', user.get('nama','-'))
-    # Potong nama panjang untuk elak terkeluar kotak, tapi tooltip full
-    display_nama_pendek = current_sekolah_display[:45] + ("..." if len(current_sekolah_display) > 45 else "")
+    current_no_pusat_display = st.session_state.get('current_no_pusat', '-')
     
     st.markdown(f'''
-    <div class="card" style="position:sticky; top:18px; padding:16px;">
-        <div style="font-weight:800; font-size:13px; line-height:1.3;" title="{current_sekolah_display}">{user['id']} - {display_nama_pendek}</div>
-        <div style="font-size:11px; color:#64748B; margin:4px 0;">{peranan_user} | {current_sekolah_display}</div>
-        <div style="font-size:11px; background:#EEF2FF; padding:4px 8px; border-radius:6px; display:inline-block;">PPD: {current_ppd_display}</div>
+    <div class="card" style="position:sticky; top:18px; padding:16px; border:2px solid #E2E8F0;">
+        <div style="font-size:12px; font-weight:700; color:#0F172A; margin-bottom:8px; line-height:1.3;">{current_sekolah_display}</div>
+        <div style="font-size:11px; color:#475569; margin:3px 0;"><b>No Pusat:</b> {current_no_pusat_display}</div>
+        <div style="font-size:11px; background:#EEF2FF; color:#1E40AF; padding:6px 10px; border-radius:8px; display:block; margin-top:8px; font-weight:600;">PPD: {current_ppd_display}</div>
+        <div style="font-size:10px; color:#94A3B8; margin-top:6px;">{peranan_user}</div>
         <hr style="margin:12px 0;">
     ''', unsafe_allow_html=True)
     
