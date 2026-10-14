@@ -386,7 +386,7 @@ def jana_blpp_html(report):
     else:
         kes_rows = ""
         for i, k in enumerate(kes_data, 1):
-            kes_rows += f"<tr><td style='height:32px;'>{i}</td><td>{k.get('angka_giliran','')}</td><td>{k.get('no_ic','')}</td><td style='text-align:left;'>{k.get('kes','')}</td><td style='text-align:left;'>{k.get('tindakan','')}</td></tr>"
+            kes_rows += f"<tr><td style='height:auto; min-height:32px; word-wrap:break-word; white-space:pre-wrap;'>{i}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('angka_giliran','')}</td><td style='word-wrap:break-word; white-space:pre-wrap;'>{k.get('no_ic','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('kes','')}</td><td style='text-align:left; word-wrap:break-word; white-space:pre-wrap; word-break:break-word;'>{k.get('tindakan','')}</td></tr>"
         for _ in range(max(0, 5 - len(kes_data))):
             kes_rows += "<tr><td style='height:32px;'>&nbsp;</td><td></td><td></td><td></td><td></td></tr>"
 
@@ -405,9 +405,9 @@ def jana_blpp_html(report):
         .arahan {{ width:100%; font-size:8.2pt; text-align:left; line-height:1.35; box-sizing:border-box; }}
         .arahan ol {{ margin:0; padding-left:18px; }}
         table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
-        th, td {{ border:1.2px solid #000; padding:4px 5px; font-size:9pt; }}
+        th, td { word-wrap:break-word; white-space:pre-wrap; word-break:break-word; { border:1.2px solid #000; padding:4px 5px; font-size:9pt; }}
         th {{ text-align:center; font-weight:bold; vertical-align:middle; }}
-        td {{ text-align:center; vertical-align:middle; }}
+        td { word-wrap:break-word; white-space:pre-wrap; word-break:break-word; { text-align:center; vertical-align:middle; }}
         .footer {{ display:flex; justify-content:space-between; margin-top:26px; font-size:9pt; }}
     </style></head><body>
     <div class="page">
@@ -635,21 +635,57 @@ def jana_blpp_pdf(report):
             pdf.cell(wb4, big_h, "", border=1)
             pdf.set_xy(x4, y_body)
             pdf.cell(wb5, big_h, "", border=1)
-            pdf.set_font("Helvetica", "", 7.5)
-            for idx, k in enumerate(kes_data[:8]):
-                yy = y_body + 1 + idx*7
-                if yy > y_body+big_h-3:
+            pdf.set_font("Helvetica", "", 7)
+            # FIX BERTINDIH: Guna multi_cell dengan wrap, bukan cell 6mm potong 50 huruf
+            row_y = y_body + 1
+            max_rows_height = big_h - 2
+            for idx, k in enumerate(kes_data):
+                if row_y > y_body + max_rows_height - 5:
                     break
-                pdf.set_xy(10, yy)
-                pdf.cell(wb1, 6, str(idx+1), align="C")
-                pdf.set_xy(10+wb1, yy)
-                pdf.cell(wb2, 6, str(k.get('angka_giliran',''))[:16], align="C")
-                pdf.set_xy(10+wb1+wb2, yy)
-                pdf.cell(wb3, 6, str(k.get('no_ic',''))[:18], align="C")
-                pdf.set_xy(10+wb1+wb2+wb3, yy)
-                pdf.cell(wb4, 6, str(k.get('kes',''))[:50], align="L")
-                pdf.set_xy(10+wb1+wb2+wb3+wb4, yy)
-                pdf.cell(wb5, 6, str(k.get('tindakan',''))[:50], align="L")
+                # Hitung tinggi baris berdasarkan panjang KES & TINDAKAN
+                kes_text = str(k.get('kes','')).strip()
+                tind_text = str(k.get('tindakan','')).strip()
+                # Estimasi tinggi: setiap 45 char ~ 1 baris 5mm
+                kes_lines = max(1, (len(kes_text) // 45) + 1)
+                tind_lines = max(1, (len(tind_text) // 45) + 1)
+                lines_needed = max(kes_lines, tind_lines, 1)
+                row_h = max(7, lines_needed * 5)  # min 7mm
+                
+                # Simpan y untuk kotak
+                curr_y = row_y
+                
+                # BIL
+                pdf.set_xy(x0, curr_y)
+                pdf.cell(wb1, row_h, str(idx+1), border=0, align="C")
+                # ANGKA GILIRAN
+                pdf.set_xy(x1, curr_y)
+                pdf.cell(wb2, row_h, str(k.get('angka_giliran',''))[:20], border=0, align="C")
+                # NO IC
+                pdf.set_xy(x2, curr_y)
+                pdf.cell(wb3, row_h, str(k.get('no_ic',''))[:20], border=0, align="C")
+                
+                # KES - guna multi_cell wrap
+                pdf.set_xy(x3_b, curr_y)
+                pdf.multi_cell(wb4, 5, kes_text, border=0, align="L")
+                kes_h = pdf.get_y() - curr_y
+                
+                # TINDAKAN - guna multi_cell wrap
+                pdf.set_xy(x4, curr_y)
+                pdf.multi_cell(wb5, 5, tind_text, border=0, align="L")
+                tind_h = pdf.get_y() - curr_y
+                
+                # Guna tinggi terbesar
+                actual_h = max(row_h, kes_h, tind_h, 7)
+                
+                # Lukis garisan grid untuk baris ini
+                # Vertical lines sudah ada dari kotak besar, tapi kita lukis horizontal separator
+                pdf.line(x0, curr_y + actual_h, x5, curr_y + actual_h)
+                
+                row_y += actual_h
+                
+                # Jika row_y melebihi kotak, stop
+                if row_y > y_body + big_h:
+                    break
 
         # Footer - Pelapor / Pengesahan
         yf = y_body + big_h + 6
