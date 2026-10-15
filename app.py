@@ -1875,33 +1875,56 @@ with col_content:
                     st.rerun()
                     
 
-            # Papar laporan saya (KP) - FIX KASHAH: Hanya papar laporan ikut No Pusat yang KP isi di atas
+            # Papar laporan saya (KP) - FIX KASHAH: Hanya papar ikut No Pusat yang KP isi di atas - BK001 hanya BK001
             st.markdown("---")
             st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
-            # Baca No Pusat yang KP isi di atas (dari form pilih sekolah)
-            current_no_pusat = st.session_state.get('current_no_pusat', '') or (auto_no_pusat if 'auto_no_pusat' in locals() and auto_no_pusat else '') or user.get('no_pusat','')
-            current_no_pusat = str(current_no_pusat).strip().upper()
+            # Ambil semua laporan KP ini
+            all_my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
             
-            # Filter ikut ID KP + No Pusat
-            if current_no_pusat:
-                my_reports = [r for r in reports if r.get("id_kp")==user["id"] and str(r.get("no_pusat","")).strip().upper() == current_no_pusat]
-                st.caption(f"📍 Memaparkan laporan untuk Pusat: **{current_no_pusat}** sahaja (20 Hari Peperiksaan)")
+            # Baca No Pusat semasa yang KP isi di atas - PENTING: guna final_no_pusat / auto_no_pusat yang terkini
+            try:
+                cur_pusat_top = ""
+                if 'final_no_pusat' in locals() and final_no_pusat:
+                    cur_pusat_top = str(final_no_pusat).strip().upper()
+                elif 'auto_no_pusat' in locals() and auto_no_pusat:
+                    cur_pusat_top = str(auto_no_pusat).strip().upper()
+                else:
+                    cur_pusat_top = str(st.session_state.get('current_no_pusat','') or user.get('no_pusat','')).strip().upper()
+            except:
+                cur_pusat_top = str(user.get('no_pusat','')).strip().upper()
+            
+            # Senarai No Pusat unik yang KP pernah hantar
+            unique_pusats = sorted(list(set([str(r.get("no_pusat","")).strip().upper() for r in all_my_reports if r.get("no_pusat")])))
+            
+            # Jika ada cur_pusat_top, jadikan default, kalau tak ada guna yang pertama
+            if unique_pusats:
+                default_idx = 0
+                if cur_pusat_top and cur_pusat_top in unique_pusats:
+                    default_idx = unique_pusats.index(cur_pusat_top)
+                # Dropdown untuk pilih pusat - supaya KP boleh tengok ikut pusat
+                selected_pusat_view = st.selectbox(f"Pilih No Pusat untuk lihat (Anda ada {len(unique_pusats)} pusat: {', '.join(unique_pusats[:5])}{'...' if len(unique_pusats)>5 else ''})", unique_pusats, index=default_idx, key="kp_pusat_filter")
+                if selected_pusat_view:
+                    cur_pusat_top = selected_pusat_view
+            
+            # Filter - HANYA pusat yang dipilih
+            if cur_pusat_top:
+                my_reports = [r for r in all_my_reports if str(r.get("no_pusat","")).strip().upper() == cur_pusat_top]
+                st.caption(f"📍 Memaparkan laporan untuk Pusat: **{cur_pusat_top}** sahaja - {len(my_reports)} laporan (20 Hari Peperiksaan) - No Pusat di atas: {st.session_state.get('current_no_pusat','')}")
             else:
-                my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
-                st.caption("📍 Sila pilih No Pusat di atas untuk tapis laporan ikut pusat")
+                my_reports = all_my_reports
+                st.caption("📍 Sila pilih No Pusat di atas")
             
             if my_reports:
                 df_my = pd.DataFrame(my_reports)
-                # Pastikan column ada
                 cols = ["id","tarikh","peperiksaan","no_pusat","tiada_kes"]
                 available_cols = [c for c in cols if c in df_my.columns]
                 st.dataframe(df_my[available_cols], use_container_width=True)
-                st.caption(f"Jumlah: {len(my_reports)} laporan untuk pusat {current_no_pusat if current_no_pusat else 'semua'}")
+                st.caption(f"Jumlah: {len(my_reports)} laporan untuk pusat {cur_pusat_top}")
             else:
-                if current_no_pusat:
-                    st.info(f"Belum ada laporan untuk pusat {current_no_pusat}. Sila isi borang di atas untuk hari ini.")
+                if cur_pusat_top:
+                    st.info(f"Belum ada laporan untuk pusat {cur_pusat_top}. Isi borang di atas untuk pusat ini.")
                 else:
-                    st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
+                    st.info("Belum ada laporan. Sila isi borang di atas.")
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
