@@ -1875,15 +1875,33 @@ with col_content:
                     st.rerun()
                     
 
-            # Papar laporan saya (KP)
+            # Papar laporan saya (KP) - FIX KASHAH: Hanya papar laporan ikut No Pusat yang KP isi di atas
             st.markdown("---")
             st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
-            my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
+            # Baca No Pusat yang KP isi di atas (dari form pilih sekolah)
+            current_no_pusat = st.session_state.get('current_no_pusat', '') or (auto_no_pusat if 'auto_no_pusat' in locals() and auto_no_pusat else '') or user.get('no_pusat','')
+            current_no_pusat = str(current_no_pusat).strip().upper()
+            
+            # Filter ikut ID KP + No Pusat
+            if current_no_pusat:
+                my_reports = [r for r in reports if r.get("id_kp")==user["id"] and str(r.get("no_pusat","")).strip().upper() == current_no_pusat]
+                st.caption(f"📍 Memaparkan laporan untuk Pusat: **{current_no_pusat}** sahaja (20 Hari Peperiksaan)")
+            else:
+                my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
+                st.caption("📍 Sila pilih No Pusat di atas untuk tapis laporan ikut pusat")
+            
             if my_reports:
                 df_my = pd.DataFrame(my_reports)
-                st.dataframe(df_my[["id","tarikh","peperiksaan","no_pusat","tiada_kes"]], use_container_width=True)
+                # Pastikan column ada
+                cols = ["id","tarikh","peperiksaan","no_pusat","tiada_kes"]
+                available_cols = [c for c in cols if c in df_my.columns]
+                st.dataframe(df_my[available_cols], use_container_width=True)
+                st.caption(f"Jumlah: {len(my_reports)} laporan untuk pusat {current_no_pusat if current_no_pusat else 'semua'}")
             else:
-                st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
+                if current_no_pusat:
+                    st.info(f"Belum ada laporan untuk pusat {current_no_pusat}. Sila isi borang di atas untuk hari ini.")
+                else:
+                    st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
