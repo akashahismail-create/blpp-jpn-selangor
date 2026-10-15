@@ -1,6 +1,4 @@
 import streamlit as st
-# V99 BUANG LAPORAN SAYA - 15-10-2026 - Kashah request buang terus
-
 import pandas as pd
 import json, os
 from datetime import datetime, date
@@ -1877,12 +1875,15 @@ with col_content:
                     st.rerun()
                     
 
-            # LAPORAN SAYA DIBUANG TOTAL - KASHAH 15-10-2026 V99 - TAK ADA TABLE LANGSUNG
+            # Papar laporan saya (KP)
             st.markdown("---")
-            st.success("✅ Laporan berjaya dihantar! (Laporan Saya dibuang ikut arahan Kashah - V99)")
-            # Tiada table Laporan Saya lagi - buang terus
-            pass
-            # END BUANG
+            st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
+            my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
+            if my_reports:
+                df_my = pd.DataFrame(my_reports)
+                st.dataframe(df_my[["id","tarikh","peperiksaan","no_pusat","tiada_kes"]], use_container_width=True)
+            else:
+                st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
