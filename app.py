@@ -1875,10 +1875,15 @@ with col_content:
                     st.rerun()
                     
 
-            # LAPORAN SAYA DIBUANG SEPENUHNYA - KASHAH REQUEST 2025-10-15 - TIADA TABLE
+            # Papar laporan saya (KP)
             st.markdown("---")
-            st.caption("✅ Laporan berjaya dihantar - Tiada senarai bawah (dibuang ikut arahan)")
-            pass
+            st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
+            my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
+            if my_reports:
+                df_my = pd.DataFrame(my_reports)
+                st.dataframe(df_my[["id","tarikh","peperiksaan","no_pusat","tiada_kes"]], use_container_width=True)
+            else:
+                st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
