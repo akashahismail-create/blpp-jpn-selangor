@@ -1875,8 +1875,9 @@ with col_content:
                     st.rerun()
                     
 
-            # LAPORAN SAYA DIBUANG SEPENUHNYA - KASHAH REQUEST
-            # Tiada paparan LAPORAN DIBUANG (20 Hari) lagi
+            # LAPORAN SAYA DIBUANG SEPENUHNYA - KASHAH REQUEST 2025-10-15 - TIADA TABLE
+            st.markdown("---")
+            st.caption("✅ Laporan berjaya dihantar - Tiada senarai bawah (dibuang ikut arahan)")
             pass
 
     # ========== MENU 2: SENARAI LAPORAN ==========
