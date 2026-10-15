@@ -1876,7 +1876,7 @@ with col_content:
                     
 
             # LAPORAN SAYA DIBUANG SEPENUHNYA - KASHAH REQUEST
-            # Tiada paparan Laporan Saya (20 Hari) lagi
+            # Tiada paparan LAPORAN DIBUANG (20 Hari) lagi
             pass
 
     # ========== MENU 2: SENARAI LAPORAN ==========
