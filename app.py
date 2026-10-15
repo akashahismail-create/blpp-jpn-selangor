@@ -1712,8 +1712,8 @@ with col_content:
                             "no_pusat": no_pusat,
                             "nama_pusat": nama_pusat,
                             "nama_kp": nama_kp,
-                            "ppd": KOD_PPD_MAPPING.get(str(auto_kod_ppd).strip().upper(), user.get("ppd","")) if 'auto_kod_ppd' in locals() and auto_kod_ppd else user["ppd"],  # FIX: Baca kod daerah KP isi: BA=Klang, BF=Sabak Bernam, BJ=Sepang
-                            "kod_ppd": str(auto_kod_ppd).strip().upper() if 'auto_kod_ppd' in locals() and auto_kod_ppd else PPD_TO_KOD.get(user.get("ppd",""),""),  # FIX: Simpan kod daerah dari borang
+                            "ppd": KOD_PPD_MAPPING.get(str(auto_kod_ppd).strip().upper(), user.get("ppd","")) if 'auto_kod_ppd' in locals() and auto_kod_ppd else user["ppd"],
+                            "kod_ppd": str(auto_kod_ppd).strip().upper() if 'auto_kod_ppd' in locals() and auto_kod_ppd else PPD_TO_KOD.get(user.get("ppd",""),""),
                             "tarikh": tarikh.strftime("%Y-%m-%d"),
                             "sidang": sidang,
                             "tarikh_submit": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1900,7 +1900,6 @@ with col_content:
         with colF4:
             filter_kes = st.selectbox("Jenis", ["Semua", "Ada Kes", "Tiada Kes"])
 
-        # FIX KASHAH: Betulkan semua laporan ikut kod daerah sebelum filter - BA Klang, BF Sabak Bernam, BJ Sepang
         for r in reports:
             kod_f = str(r.get("kod_ppd","")).upper().strip()
             kod_p = str(r.get("no_pusat",""))[:2].upper()
@@ -1908,10 +1907,8 @@ with col_content:
             if kod in KOD_PPD_MAPPING:
                 r["ppd"] = KOD_PPD_MAPPING[kod]
                 r["kod_ppd"] = kod
-        
         filtered = reports
         if peranan_user == "PPD":
-            # FIX: Baca kod daerah yang KP isi - BA Klang, BF Sabak Bernam, BJ Sepang, BE Hulu Selangor
             user_ppd = user["ppd"]
             user_kod = PPD_TO_KOD.get(user_ppd, "") or user.get("kod_ppd","")
             def match_ppd_filter(r):
@@ -1926,7 +1923,6 @@ with col_content:
             filtered = [r for r in filtered if r.get("id_kp")==user["id"]]
     
         if filter_ppd != "Semua":
-            # FIX: JPN Pilih PPD - baca kod daerah BA Klang, BF Sabak Bernam, BJ Sepang, semua ikut kod
             def match_filter_ppd(r):
                 kod_r = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
                 no_pusat = str(r.get("no_pusat","")).upper().strip()
@@ -2247,7 +2243,7 @@ with col_content:
             # Breakdown untuk JPN
             if reports_for_download:
                 from collections import Counter
-                all_ppd_counter = Counter([r.get('ppd','') or 'TIADA PPD' for r in reports_for_download])
+                all_ppd_counter = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper(), r.get('ppd','') or 'TIADA PPD') for r in reports_for_download])
                 all_ppd_detail = ", ".join([f"{ppd}={count}" for ppd, count in all_ppd_counter.items()])
                 st.info(f"👑 JPN/LP - semua laporan {len(reports_for_download)}: {all_ppd_detail}")
         
@@ -2268,13 +2264,14 @@ with col_content:
                 col_ppd, col_tarikh = st.columns(2)
                 with col_ppd:
                     # FIX KASHAH: Dropdown JPN mesti tunjuk SEMUA DAERAH, bukan hanya Klang sahaja - ambil dari PPD_LIST penuh
-                    all_ppds_with_data = sorted(list(set([r.get('ppd','') for r in reports_for_download if r.get('ppd')])))
-                    # Gabung semua PPD dari senarai penuh + yang ada data, tapi ikut PPD_LIST order
+                    def get_ppd_betul_dl(r):
+                        kod = str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper()
+                        return KOD_PPD_MAPPING.get(kod, r.get('ppd',''))
+                    all_ppds_with_data = sorted(list(set([get_ppd_betul_dl(r) for r in reports_for_download if get_ppd_betul_dl(r)])))
                     ppd_options = ["SEMUA DAERAH"] + PPD_LIST
                     selected_ppd_filter = st.selectbox("Pilih Daerah / PPD", ppd_options, key="jpn_ppd_filter_v2")
-                    # Info berapa laporan untuk setiap PPD
                     from collections import Counter
-                    ppd_count_map = Counter([r.get('ppd','') for r in reports_for_download])
+                    ppd_count_map = Counter([get_ppd_betul_dl(r) for r in reports_for_download])
                     if selected_ppd_filter != "SEMUA DAERAH":
                         count_sel = ppd_count_map.get(selected_ppd_filter, 0)
                         if count_sel == 0:
@@ -2286,14 +2283,20 @@ with col_content:
                 
                 filtered_jpn = reports_for_download
                 if selected_ppd_filter != "SEMUA DAERAH":
-                    filtered_jpn = [r for r in filtered_jpn if r.get('ppd') == selected_ppd_filter]
+                    def match_ppd_dl(r):
+                        kod = str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper()
+                        ppd_betul = KOD_PPD_MAPPING.get(kod, r.get('ppd',''))
+                        kod_filter = PPD_TO_KOD.get(selected_ppd_filter,'')
+                        return ppd_betul == selected_ppd_filter or kod == kod_filter
+                    filtered_jpn = [r for r in filtered_jpn if match_ppd_dl(r)]
                 if selected_tarikh_filter != "SEMUA TARIKH":
                     filtered_jpn = [r for r in filtered_jpn if r.get('tarikh') == selected_tarikh_filter]
                 
                 if not filtered_jpn:
                     if selected_ppd_filter != "SEMUA DAERAH":
                         st.warning(f"📭 Belum ada laporan di daerah {selected_ppd_filter} untuk Tarikh={selected_tarikh_filter}")
-                        st.info(f"Daerah {selected_ppd_filter} belum ada KP yang hantar laporan. Total sistem ada {len(reports_for_download)} laporan: {', '.join([f'{k}={v}' for k,v in Counter([r.get('ppd','') for r in reports_for_download]).items()])}")
+                        ppd_counts_real = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper(), r.get('ppd','')) for r in reports_for_download])
+                        st.info(f"Daerah {selected_ppd_filter} belum ada KP yang hantar laporan. Total sistem ada {len(reports_for_download)} laporan: {', '.join([f'{k}={v}' for k,v in ppd_counts_real.items()])}")
                     else:
                         st.warning(f"Tiada laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}")
                 else:
@@ -2641,18 +2644,14 @@ with col_content:
             my_reports = reports
             if peranan_user == "PPD":
                 user_ppd = user["ppd"]
-                user_kod = user.get("kod_ppd","")
+                user_kod = PPD_TO_KOD.get(user_ppd,"") or user.get("kod_ppd","")
                 def match_stat(r):
-                    r_ppd = str(r.get("ppd","")).strip()
-                    r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                    if r_ppd == user_ppd:
+                    kod_r = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
+                    no_pusat = str(r.get("no_pusat","")).upper()
+                    kod_dari_pusat = no_pusat[:2] if len(no_pusat)>=2 else ""
+                    if user_kod and (kod_r == user_kod.upper() or kod_dari_pusat == user_kod.upper()):
                         return True
-                    if user_kod and r_kod == user_kod.upper():
-                        return True
-                    if user_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
-                        return True
-                    if user_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
-                        return True
+                    return False
                     # Also check all BK codes
                     if user_ppd == "Petaling Utama":
                         # Petaling Utama reports might have ppd = BK or Petaling Utama
