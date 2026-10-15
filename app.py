@@ -1875,33 +1875,8 @@ with col_content:
                     st.rerun()
                     
 
-            # Papar laporan saya (KP) - BARU: Hanya ikut No Pusat yang KP isi di atas - BK001 hanya BK001
-            st.markdown("---")
-            st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
-            # No Pusat yang KP isi di atas (dari form)
-            try:
-                cur_pusat = ""
-                if 'final_no_pusat' in locals() and final_no_pusat:
-                    cur_pusat = str(final_no_pusat).strip().upper()
-                elif 'auto_no_pusat' in locals() and auto_no_pusat:
-                    cur_pusat = str(auto_no_pusat).strip().upper()
-                else:
-                    cur_pusat = str(st.session_state.get('current_no_pusat','') or user.get('no_pusat','')).strip().upper()
-            except:
-                cur_pusat = str(user.get('no_pusat','')).strip().upper()
-            
-            if cur_pusat:
-                my_reports = [r for r in reports if r.get("id_kp")==user["id"] and str(r.get("no_pusat","")).strip().upper() == cur_pusat]
-                st.caption(f"📍 Pusat: **{cur_pusat}** - {len(my_reports)} laporan untuk pusat ini sahaja (20 Hari)")
-                if my_reports:
-                    df_my = pd.DataFrame(my_reports)
-                    cols = ["id","tarikh","peperiksaan","no_pusat","tiada_kes"]
-                    avail = [c for c in cols if c in df_my.columns]
-                    st.dataframe(df_my[avail], use_container_width=True)
-                else:
-                    st.info(f"Belum ada laporan untuk {cur_pusat}")
-            else:
-                st.info("Sila pilih No Pusat di atas")
+            # Laporan Saya DIBUANG - ikut permintaan Kashah
+            pass
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
