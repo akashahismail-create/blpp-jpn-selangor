@@ -1748,25 +1748,44 @@ with col_content:
                 user_ppd_excel = forced_ppd_from_kod
                 user_kod_excel = prefix_kod
             else:
-                # v45 FIX KASHAH: BC001 tak ada dalam Excel real - JANGAN guna data login Sepang, paksa ikut kod prefix
-                # BC=Kuala Selangor, BJ=Sepang - SET KAT SEMUA
+                # v46 FIX KASHAH: BC001 tak ada dalam Excel - 2 pilihan: auto baca Kuala Selangor ATAU bagi KP isi manual
                 auto_no_pusat = user_no_pusat
                 auto_kod_ppd = prefix_kod
                 selected_ppd = forced_ppd_from_kod
                 user_ppd_excel = forced_ppd_from_kod
                 user_kod_excel = prefix_kod
-                # Nama pusat: kalau login bagi SMK Sepang tapi kod BC, paksa jadi sekolah Kuala Selangor
-                nama_login = user.get("nama_pusat", "")
-                # Jika kod BC tapi nama ada Sepang, tukar jadi Kuala Selangor
-                if prefix_kod == "BC" and "SEPANG" in str(nama_login).upper():
-                    selected_sekolah = f"SEKOLAH MENENGAH KEBANGSAAN KUALA SELANGOR - {user_no_pusat} (Auto-Correct BC=Kuala Selangor)"
-                elif prefix_kod == "BC":
-                    selected_sekolah = nama_login if nama_login and "SMK" in nama_login.upper() else f"SMK KUALA SELANGOR {user_no_pusat}"
-                elif prefix_kod == "BJ" and "KUALA SELANGOR" in str(nama_login).upper():
-                    selected_sekolah = f"SEKOLAH MENENGAH KEBANGSAAN SERI SEPANG - {user_no_pusat} (Auto-Correct BJ=Sepang)"
-                else:
-                    selected_sekolah = nama_login if nama_login else f"SMK {forced_ppd_from_kod} {user_no_pusat}"
-                st.warning(f"⚠️ Pusat {user_no_pusat} tak ada dalam Excel real (Excel cuma ada 504 pusat bermula BC005, bukan BC001). Guna mapping paksa: {prefix_kod} = {forced_ppd_from_kod}. Sekolah auto-correct ke Kuala Selangor.")
+                
+                st.warning(f"⚠️ No Pusat {user_no_pusat} TIADA dalam data Excel (Excel 504 pusat: BC start BC005, bukan BC001). Sistem auto-baca ikut kod: {prefix_kod} = {forced_ppd_from_kod}")
+                st.info(f"💡 Kod {prefix_kod} = PPD {forced_ppd_from_kod}. Jika No Pusat salah, sila isi manual di bawah. Jika betul BC001 tapi tiada dalam Excel, sistem benarkan isi manual.")
+                
+                # Beri pilihan isi manual - jika pusat tiada dalam data
+                with st.container(border=True):
+                    st.markdown("#### 📝 No Pusat Tiada Dalam Data - Mohon KP Isi Manual")
+                    st.caption("Pusat anda tidak dijumpai dalam Excel. Sila sahkan No Pusat & Nama Pusat. PPD akan auto ikut kod.")
+                    
+                    col_manual1, col_manual2 = st.columns([1,2])
+                    with col_manual1:
+                        manual_no_pusat = st.text_input("No Pusat (Manual)", value=user_no_pusat, key=f"manual_no_{user_no_pusat}", help="Contoh: BC001, BJ013, BA001")
+                        manual_kod = manual_no_pusat[:2].upper() if len(manual_no_pusat)>=2 else prefix_kod
+                        manual_ppd = KOD_PPD_MAPPING.get(manual_kod, forced_ppd_from_kod)
+                        st.markdown(f"**Kod:** {manual_kod} = **PPD:** {manual_ppd}")
+                    with col_manual2:
+                        nama_login = user.get("nama_pusat", "")
+                        default_nama = nama_login if nama_login else f"SMK {manual_ppd} {manual_no_pusat}"
+                        # Jika BC tapi nama Sepang, suggest Kuala Selangor
+                        if manual_kod == "BC" and "SEPANG" in str(default_nama).upper():
+                            default_nama = f"SEKOLAH MENENGAH KEBANGSAAN KUALA SELANGOR"
+                        manual_nama = st.text_input("Nama Pusat (Manual)", value=default_nama, key=f"manual_nama_{user_no_pusat}", help="Isi nama sekolah penuh")
+                    
+                    # Guna nilai manual jika KP ubah
+                    selected_sekolah = manual_nama if manual_nama else default_nama
+                    auto_no_pusat = manual_no_pusat.upper() if manual_no_pusat else user_no_pusat
+                    # Update PPD ikut manual_no_pusat yang baru
+                    new_prefix = auto_no_pusat[:2].upper() if len(auto_no_pusat)>=2 else prefix_kod
+                    selected_ppd = KOD_PPD_MAPPING.get(new_prefix, manual_ppd)
+                    user_ppd_excel = selected_ppd
+                    auto_kod_ppd = new_prefix
+                    user_kod_excel = new_prefix
             
             # PAPARAN LOCKED - Tak ada dropdown lagi untuk KP
             st.markdown(f'''
