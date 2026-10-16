@@ -1748,12 +1748,25 @@ with col_content:
                 user_ppd_excel = forced_ppd_from_kod
                 user_kod_excel = prefix_kod
             else:
-                # fallback kalau tak jumpa dalam Excel - guna data user
-                selected_sekolah = user.get("nama_pusat", "")
+                # v45 FIX KASHAH: BC001 tak ada dalam Excel real - JANGAN guna data login Sepang, paksa ikut kod prefix
+                # BC=Kuala Selangor, BJ=Sepang - SET KAT SEMUA
                 auto_no_pusat = user_no_pusat
-                auto_kod_ppd = user_kod_excel
-                selected_ppd = user.get("ppd","")
-                st.caption(f"Pusat {user_no_pusat} - data login")
+                auto_kod_ppd = prefix_kod
+                selected_ppd = forced_ppd_from_kod
+                user_ppd_excel = forced_ppd_from_kod
+                user_kod_excel = prefix_kod
+                # Nama pusat: kalau login bagi SMK Sepang tapi kod BC, paksa jadi sekolah Kuala Selangor
+                nama_login = user.get("nama_pusat", "")
+                # Jika kod BC tapi nama ada Sepang, tukar jadi Kuala Selangor
+                if prefix_kod == "BC" and "SEPANG" in str(nama_login).upper():
+                    selected_sekolah = f"SEKOLAH MENENGAH KEBANGSAAN KUALA SELANGOR - {user_no_pusat} (Auto-Correct BC=Kuala Selangor)"
+                elif prefix_kod == "BC":
+                    selected_sekolah = nama_login if nama_login and "SMK" in nama_login.upper() else f"SMK KUALA SELANGOR {user_no_pusat}"
+                elif prefix_kod == "BJ" and "KUALA SELANGOR" in str(nama_login).upper():
+                    selected_sekolah = f"SEKOLAH MENENGAH KEBANGSAAN SERI SEPANG - {user_no_pusat} (Auto-Correct BJ=Sepang)"
+                else:
+                    selected_sekolah = nama_login if nama_login else f"SMK {forced_ppd_from_kod} {user_no_pusat}"
+                st.warning(f"⚠️ Pusat {user_no_pusat} tak ada dalam Excel real (Excel cuma ada 504 pusat bermula BC005, bukan BC001). Guna mapping paksa: {prefix_kod} = {forced_ppd_from_kod}. Sekolah auto-correct ke Kuala Selangor.")
             
             # PAPARAN LOCKED - Tak ada dropdown lagi untuk KP
             st.markdown(f'''
