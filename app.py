@@ -1,3 +1,5 @@
+# App-50-v41-FINAL-QA-FIX - Production 504 Pusat JPN Selangor - KP/PPD/JPN/LP - Dark Mode Fix + Pep Filter + KP Cetak Semula
+# Based on v40 perfect - All functions retained, debug cleaned, garis lurus, tak senggang, logo LP
 import streamlit as st
 import pandas as pd
 import json, os
@@ -1556,7 +1558,7 @@ if not st.session_state.login:
                             st.balloons()
                         else:
                             st.error("Gagal reset")
-                st.info(f"Debug: Cuba login dengan ID dari Excel - contoh BA001/ba001, BH562/bh562, BK002/bk002")
+                # Debug login cleaned
         
         # PANDUAN DIBUANG IKUT REQUEST KASHAH
         
@@ -1575,7 +1577,7 @@ if not st.session_state.login:
             </div>
         </div>
         <div style="text-align:center; margin-top:20px; font-size:10px; color:rgba(255,255,255,0.6);">
-            © 2026 Sektor Pentaksiran & Peperiksaan, JPN Selangor<br>Versi 2.0 • Selamat • Pantas • Mesra Pengguna
+            © 2026 Sektor Pentaksiran & Peperiksaan, JPN Selangor<br>Versi 4.1 FINAL • 504 Pusat • JPN Selangor • 2026
         </div>
         ''', unsafe_allow_html=True)
     
@@ -1633,7 +1635,7 @@ with col_menu:
     elif peranan_user == "LP":
         menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📦 Download Pukal ZIP", "🚪 Log Keluar"]
     else:
-        menu_items = ["📝 Isi Borang BLPP (KP)", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
+        menu_items = ["📝 Isi Borang BLPP (KP)", "🖨️ Cetak Semula Laporan Saya", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
     menu = st.radio("Menu", menu_items, label_visibility="collapsed")
     
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
@@ -1704,7 +1706,7 @@ with col_content:
                 auto_no_pusat = user_no_pusat
                 auto_kod_ppd = user_kod_excel
                 selected_ppd = user.get("ppd","")
-                st.warning(f"⚠️ Pusat {user_no_pusat} tak jumpa dalam Excel, guna data login. Pastikan data_v1.1_3_1.xlsx ada.")
+                st.caption(f"Pusat {user_no_pusat} - data login")
             
             # PAPARAN LOCKED - Tak ada dropdown lagi untuk KP
             st.markdown(f'''
@@ -2188,6 +2190,136 @@ with col_content:
                 else:
                     st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
+    # ========== MENU 1B: CETAK SEMULA LAPORAN SAYA (KP) - v40 KASHAH: KP lupa cetak semasa buat laporan, nak cetak semula ==========
+    elif menu.startswith("🖨️") and peranan_user == "KP":
+        # Check if this is Cetak Semula Laporan Saya (KP) vs Cetak Borang BLPP (PPD/JPN/LP)
+        if "Semula" in menu or "Saya" in menu:
+            st.markdown('<div class="card"><h3>🖨️ Cetak Semula Laporan Saya (KP)</h3><p style="font-size:12px; color:#475569;">KP terlupa cetak semasa hantar laporan? Pilih laporan lama anda di bawah untuk cetak semula PDF berlogo. Semua laporan anda ikut No Pusat anda sahaja.</p></div>', unsafe_allow_html=True)
+            
+            # Filter laporan KP ini sahaja
+            my_reports = [r for r in reports if str(r.get("id_kp","")).strip().upper() == str(user.get("id","")).strip().upper() and str(r.get("no_pusat","")).strip().upper() == str(user.get("no_pusat","")).strip().upper()]
+            
+            if not my_reports:
+                st.warning("📭 Belum ada laporan anda. Sila isi Borang BLPP dahulu di menu Isi Borang BLPP.")
+            else:
+                st.success(f"📋 Anda ada {len(my_reports)} laporan untuk pusat {user.get('no_pusat')} - {user.get('nama_pusat','')}")
+                
+                # Filter ikut tarikh & peperiksaan
+                from collections import Counter
+                col_tarikh_kp, col_pep_kp = st.columns(2)
+                with col_tarikh_kp:
+                    all_tarikh_kp = sorted(list(set([r.get('tarikh','') for r in my_reports if r.get('tarikh')])), reverse=True)
+                    tarikh_opts_kp = ["SEMUA TARIKH"] + all_tarikh_kp
+                    sel_tarikh_kp = st.selectbox("Pilih Tarikh", tarikh_opts_kp, key="kp_cetak_tarikh_v40")
+                with col_pep_kp:
+                    all_pep_kp = sorted(list(set([str(r.get('peperiksaan','')).strip().upper() for r in my_reports if r.get('peperiksaan')])))
+                    pep_opts_kp = ["SEMUA PEPERIKSAAN"] + all_pep_kp
+                    sel_pep_kp = st.selectbox("Pilih Peperiksaan", pep_opts_kp, key="kp_cetak_pep_v40")
+                
+                filtered_kp = my_reports
+                if sel_tarikh_kp != "SEMUA TARIKH":
+                    filtered_kp = [r for r in filtered_kp if r.get('tarikh') == sel_tarikh_kp]
+                if sel_pep_kp != "SEMUA PEPERIKSAAN":
+                    filtered_kp = [r for r in filtered_kp if str(r.get('peperiksaan','')).strip().upper() == str(sel_pep_kp).strip().upper()]
+                
+                # Sort latest first
+                filtered_kp = sorted(filtered_kp, key=lambda x: x.get('tarikh_submit',''), reverse=True)
+                
+                if not filtered_kp:
+                    st.warning(f"Tiada laporan untuk Tarikh={sel_tarikh_kp}, Peperiksaan={sel_pep_kp}")
+                else:
+                    st.info(f"✅ {len(filtered_kp)} laporan ditemui - pilih satu untuk cetak semula")
+                    
+                    # Buat list pilihan dengan label cantik
+                    report_map_kp = {}
+                    for r in filtered_kp:
+                        kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
+                        sidang_label = r.get('sidang','') or '-'
+                        submit_time = r.get('tarikh_submit','') or r.get('tarikh','')
+                        try:
+                            from datetime import datetime as dt_parse
+                            if ' ' in submit_time:
+                                dt_obj = dt_parse.strptime(submit_time, "%Y-%m-%d %H:%M:%S")
+                                masa_cantik = dt_obj.strftime("%d/%m/%Y %H:%M:%S")
+                            else:
+                                masa_cantik = submit_time
+                        except:
+                            masa_cantik = submit_time
+                        label = f"{r.get('tarikh')} | {r.get('peperiksaan','')} | {sidang_label} | {kes_label} | Hantar: {masa_cantik} | ID: {r.get('id','')[:20]}"
+                        report_map_kp[label] = r
+                    
+                    sel_label_kp = st.selectbox(f"📄 Pilih Laporan untuk Cetak Semula ({len(report_map_kp)} laporan)", list(report_map_kp.keys()), key="kp_cetak_select_v40")
+                    
+                    if sel_label_kp:
+                        selected_report_kp = report_map_kp[sel_label_kp]
+                        
+                        # Preview info
+                        col_info1, col_info2 = st.columns(2)
+                        with col_info1:
+                            st.markdown(f"""
+                            <div style="background:#F8FAFF; border:1px solid #E2E8F0; border-radius:10px; padding:12px;">
+                                <b>No Pusat:</b> {selected_report_kp.get('no_pusat')}<br>
+                                <b>Nama Pusat:</b> {selected_report_kp.get('nama_pusat')}<br>
+                                <b>Peperiksaan:</b> {selected_report_kp.get('peperiksaan')}<br>
+                                <b>Tarikh:</b> {selected_report_kp.get('tarikh')}<br>
+                                <b>Sidang:</b> {selected_report_kp.get('sidang','-')}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        with col_info2:
+                            kes_count = 0 if selected_report_kp.get('tiada_kes') else len(selected_report_kp.get('kes_data',[]))
+                            st.markdown(f"""
+                            <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px;">
+                                <b>Status:</b> {"TIADA KES" if selected_report_kp.get('tiada_kes') else f"{kes_count} KES"}<br>
+                                <b>Hantar Pada:</b> {selected_report_kp.get('tarikh_submit','')}<br>
+                                <b>Pelapor:</b> {selected_report_kp.get('pelapor','') or selected_report_kp.get('nama_kp','')}<br>
+                                <b>ID Laporan:</b> {selected_report_kp.get('id','')[:30]}
+                            </div>
+                            """, unsafe_allow_html=True)
+                        
+                        st.markdown("---")
+                        # Preview HTML & PDF
+                        try:
+                            html_preview = jana_blpp_html(selected_report_kp)
+                            st.markdown("#### 👁️ Preview Borang BLPP")
+                            st.components.v1.html(html_preview, height=800, scrolling=True)
+                        except Exception as e:
+                            st.error(f"Gagal preview: {e}")
+                        
+                        st.markdown("---")
+                        col_pdf, col_html = st.columns(2)
+                        with col_pdf:
+                            try:
+                                pdf_bytes = jana_blpp_pdf(selected_report_kp)
+                                if isinstance(pdf_bytes, BytesIO):
+                                    pdf_bytes = pdf_bytes.getvalue()
+                                st.download_button(
+                                    label="📥 Cetak Semula PDF Berlogo",
+                                    data=pdf_bytes,
+                                    file_name=f"BLPP_CETAK_SEMULA_{selected_report_kp.get('no_pusat')}_{selected_report_kp.get('tarikh')}_{selected_report_kp.get('id','')[:8]}.pdf",
+                                    mime="application/pdf",
+                                    key="kp_download_pdf_v40",
+                                    type="primary",
+                                    use_container_width=True
+                                )
+                            except Exception as e:
+                                st.error(f"Gagal jana PDF: {e}")
+                        with col_html:
+                            try:
+                                html_bytes = jana_blpp_html(selected_report_kp).encode('utf-8')
+                                st.download_button(
+                                    label="📄 Download HTML",
+                                    data=html_bytes,
+                                    file_name=f"BLPP_CETAK_SEMULA_{selected_report_kp.get('no_pusat')}_{selected_report_kp.get('tarikh')}.html",
+                                    mime="text/html",
+                                    key="kp_download_html_v40",
+                                    use_container_width=True
+                                )
+                            except:
+                                pass
+        else:
+            # Ini untuk PPD/JPN/LP yang guna menu 🖨️ Cetak Borang BLPP - akan di-handle di bawah
+            pass
+
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
         st.markdown('<div class="card"><h3>📋 Senarai Laporan BLPP</h3></div>', unsafe_allow_html=True)
@@ -2256,7 +2388,7 @@ with col_content:
             st.info("Tiada laporan ditemui dengan filter tersebut.")
 
     # ========== MENU 3: CETAK BORANG BLPP - FIX UNTUK PPD (KASHAH) ==========
-    elif menu.startswith("🖨️"):
+    elif menu.startswith("🖨️") and peranan_user != "KP":
         st.markdown('<div class="card"><h3>🖨️ Cetak Borang BLPP LP/Am 90 Pin. 1/2023 (Official) - PPD Enhanced</h3><p style="font-size:12px;">Proses: Login PPD → Pilih Daerah (PPD) → Pilih Tarikh → Pilih Sekolah/Pusat → Cetak. PPD Klang akan nampak semua laporan PPD Klang sahaja.</p></div>', unsafe_allow_html=True)
     
         if not reports:
@@ -2281,7 +2413,7 @@ with col_content:
                 available_reports = [r for r in reports if is_report_for_ppd_strict(r, sel_ppd)]
                 st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
                 if len(available_reports)==0 and len(reports)>0:
-                    st.warning(f"⚠️ Tiada laporan untuk {sel_ppd}. Debug: Total {len(reports)} laporan, PPD dalam sistem: {list(set([r.get('ppd','') for r in reports]))[:5]}")
+                    st.info(f"Belum ada laporan untuk {sel_ppd}. KP daerah {sel_ppd} belum hantar lagi.")
             else:
                 # JPN/LP/Admin masih perlu pilih PPD
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
@@ -2515,7 +2647,7 @@ with col_content:
         if not reports_for_download:
             if peranan_user == "PPD":
                 st.warning(f"Belum ada laporan untuk daerah {user.get('ppd')}. KP daerah {user.get('ppd')} belum hantar.")
-                st.caption(f"Debug: Total sistem={len(reports)}, daerah anda={len(reports_for_download)}")
+                # Debug cleaned for production
             else:
                 st.warning("Belum ada laporan dalam sistem.")
         else:
@@ -2525,7 +2657,7 @@ with col_content:
             
             # JPN: Pilihan Daerah + Tarikh + Peperiksaan (v37 - KASHAH: tak campur peperiksaan)
             if peranan_user == "ADMIN_JPN" or peranan_user == "LP":
-                st.markdown("#### 🎯 Pilih Daerah, Tarikh & Peperiksaan (JPN - Semua Daerah)")
+                st.markdown("#### 🎯 Pilih Daerah, Tarikh & Peperiksaan (JPN/LP - Semua Daerah)")
                 col_ppd, col_tarikh, col_pep = st.columns(3)
                 with col_ppd:
                     # FIX KASHAH: Dropdown JPN mesti tunjuk SEMUA DAERAH, bukan hanya Klang sahaja - ambil dari PPD_LIST penuh
@@ -2629,6 +2761,90 @@ with col_content:
                                 file_name=f"BLPP_JPN_{selected_ppd_filter}_{selected_tarikh_filter}_{safe_pep}_{count}laporan.zip",
                                 mime="application/zip",
                                 key="jpn_dl_filtered_v2",
+                                type="primary",
+                                use_container_width=True
+                            )
+            
+            # PPD: Pilihan Tarikh & Peperiksaan (v38 - KASHAH: PPD pun sama, pilih peperiksaan & tarikh, tak campur)
+            if peranan_user == "PPD":
+                st.markdown("---")
+                st.markdown(f"#### 🎯 Pilih Tarikh & Peperiksaan (PPD {user.get('ppd')} - Daerah Anda Sahaja)")
+                col_tarikh_ppd, col_pep_ppd = st.columns(2)
+                with col_tarikh_ppd:
+                    all_tarikhs_ppd = sorted(list(set([r.get('tarikh','') for r in reports_for_download if r.get('tarikh')])), reverse=True)
+                    tarikh_options_ppd = ["SEMUA TARIKH"] + all_tarikhs_ppd
+                    selected_tarikh_ppd = st.selectbox("Pilih Tarikh", tarikh_options_ppd, key="ppd_tarikh_filter_v38")
+                with col_pep_ppd:
+                    all_peps_ppd = sorted(list(set([str(r.get('peperiksaan','')).strip().upper() for r in reports_for_download if r.get('peperiksaan')])))
+                    pep_options_ppd = ["SEMUA PEPERIKSAAN"] + (PEPERIKSAAN_LIST if 'PEPERIKSAAN_LIST' in globals() else all_peps_ppd)
+                    seen_ppd = set()
+                    pep_unique_ppd = []
+                    for p in pep_options_ppd:
+                        pu = str(p).strip().upper()
+                        if pu not in seen_ppd:
+                            seen_ppd.add(pu)
+                            pep_unique_ppd.append(p)
+                    for ap in all_peps_ppd:
+                        if ap not in seen_ppd:
+                            pep_unique_ppd.append(ap)
+                    selected_pep_ppd = st.selectbox("Pilih Peperiksaan", pep_unique_ppd, key="ppd_pep_filter_v38")
+                
+                filtered_ppd = reports_for_download
+                if selected_tarikh_ppd != "SEMUA TARIKH":
+                    filtered_ppd = [r for r in filtered_ppd if r.get('tarikh') == selected_tarikh_ppd]
+                if selected_pep_ppd != "SEMUA PEPERIKSAAN":
+                    filtered_ppd = [r for r in filtered_ppd if str(r.get('peperiksaan','')).strip().upper() == str(selected_pep_ppd).strip().upper()]
+                
+                if not filtered_ppd:
+                    st.warning(f"📭 Tiada laporan untuk Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} di daerah {user.get('ppd')}")
+                else:
+                    st.success(f"✅ {len(filtered_ppd)} laporan untuk Daerah={user.get('ppd')}, Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} akan dijana")
+                    with st.expander(f"📋 Lihat {len(filtered_ppd)} laporan", expanded=False):
+                        for r in filtered_ppd[:20]:
+                            st.write(f"- {r.get('tarikh')} | {r.get('no_pusat')} | {r.get('nama_pusat','')[:30]} | {r.get('peperiksaan','')} | {r.get('nama_kp','')[:20]}")
+                
+                    col_jana_ppd, col_dl_ppd = st.columns(2)
+                    with col_jana_ppd:
+                        if st.button(f"🔄 Jana ZIP {len(filtered_ppd)} Laporan", key="ppd_jana_filtered_v38", type="primary", use_container_width=True):
+                            with st.spinner(f"Jana {len(filtered_ppd)} PDF..."):
+                                try:
+                                    import zipfile
+                                    from io import BytesIO
+                                    zip_buffer = BytesIO()
+                                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                                        for r in filtered_ppd:
+                                            no_pusat = r.get('no_pusat','UNKNOWN')
+                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
+                                            base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
+                                            try:
+                                                pdf_data = jana_blpp_pdf(r)
+                                                if isinstance(pdf_data, BytesIO):
+                                                    pdf_bytes = pdf_data.getvalue()
+                                                else:
+                                                    pdf_bytes = pdf_data
+                                                zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
+                                            except:
+                                                try:
+                                                    html_content = jana_blpp_html(r)
+                                                    zip_file.writestr(f"{base_filename}.html", html_content)
+                                                except:
+                                                    pass
+                                    zip_buffer.seek(0)
+                                    st.session_state["ppd_filtered_zip"] = zip_buffer.getvalue()
+                                    st.session_state["ppd_filtered_count"] = len(filtered_ppd)
+                                    st.success(f"✅ {len(filtered_ppd)} PDF dijana!")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                    with col_dl_ppd:
+                        if "ppd_filtered_zip" in st.session_state:
+                            count = st.session_state.get("ppd_filtered_count", len(filtered_ppd))
+                            safe_pep_ppd = "".join(c if c.isalnum() else "_" for c in str(selected_pep_ppd)[:20])
+                            st.download_button(
+                                label=f"⬇️ Download ZIP ({count}) - {selected_pep_ppd}",
+                                data=st.session_state["ppd_filtered_zip"],
+                                file_name=f"BLPP_PPD_{user.get('ppd')}_{selected_tarikh_ppd}_{safe_pep_ppd}_{count}laporan.zip",
+                                mime="application/zip",
+                                key="ppd_dl_filtered_v38",
                                 type="primary",
                                 use_container_width=True
                             )
