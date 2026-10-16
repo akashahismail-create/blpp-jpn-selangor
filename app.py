@@ -797,20 +797,20 @@ def jana_blpp_html(report):
                 <col style="width:31%;">
                 <col style="width:31%;">
             </colgroup>
-            <tr>
-                <th colspan="2" style="width:22%;">NO. PUSAT</th>
-                <th colspan="2" style="width:47%;">NAMA PUSAT PEPERIKSAAN</th>
-                <th style="width:31%; font-size:8pt; line-height:1.28; text-align:center; vertical-align:middle; padding:5px 4px; font-weight:bold;">
-                    <div style="text-align:center; margin-left:-6px;">NAMA KETUA PENGAWAS</div>
-                    <div style="text-align:center;">PEPERIKSAAN / KETUA PENGAWAS</div>
-                    <div style="text-align:center;">AMALI / KETUA PENTAKSIR /</div>
-                    <div style="text-align:center;">ASSESSOR</div>
+            <tr style="height:32px;">
+                <th colspan="2" style="width:22%; font-size:8pt; padding:2px 3px; height:32px; line-height:1.15;">NO. PUSAT</th>
+                <th colspan="2" style="width:47%; font-size:8pt; padding:2px 3px; height:32px; line-height:1.15;">NAMA PUSAT PEPERIKSAAN</th>
+                <th style="width:31%; font-size:6.8pt; line-height:1.15; text-align:center; vertical-align:middle; padding:2px 3px; height:32px; font-weight:bold;">
+                    <div style="text-align:center; margin:0; padding:0; line-height:1.15;">NAMA KETUA PENGAWAS</div>
+                    <div style="text-align:center; margin:0; padding:0; line-height:1.15;">PEPERIKSAAN / KETUA PENGAWAS</div>
+                    <div style="text-align:center; margin:0; padding:0; line-height:1.15;">AMALI / KETUA PENTAKSIR /</div>
+                    <div style="text-align:center; margin:0; padding:0; line-height:1.15;">ASSESSOR</div>
                 </th>
             </tr>
-            <tr>
-                <td colspan="2" style="font-weight:bold; height:24px; border-bottom:none; text-align:center;">{no_pusat}</td>
-                <td colspan="2" style="font-weight:bold; border-bottom:none; text-align:center;">{nama_pusat}</td>
-                <td style="font-weight:bold; word-wrap:break-word; border-bottom:none; text-align:center;">{nama_kp}</td>
+            <tr style="height:22px;">
+                <td colspan="2" style="font-weight:bold; height:22px; border-bottom:none; text-align:center; font-size:8.5pt; padding:2px;">{no_pusat}</td>
+                <td colspan="2" style="font-weight:bold; border-bottom:none; text-align:center; font-size:8.5pt; padding:2px;">{nama_pusat}</td>
+                <td style="font-weight:bold; word-wrap:break-word; border-bottom:none; text-align:center; font-size:8.5pt; padding:2px; height:22px;">{nama_kp}</td>
             </tr>
         </table>
         <table style="margin-top:0px; border-top:none; border-collapse:collapse;">
