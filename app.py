@@ -767,6 +767,14 @@ def load_reports_cached(file_mtime):
     return []
 
 def load_reports():
+    # V60 FINAL: Try Google Sheets first - data kekal walau reboot
+    try:
+        gs_data = load_reports_from_gsheets()
+        if gs_data is not None and len(gs_data) > 0:
+            return gs_data
+    except:
+        pass
+    # Fallback JSON local
     try:
         mtime = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
     except:
