@@ -1633,7 +1633,7 @@ with col_menu:
     elif peranan_user == "LP":
         menu_items = ["📊 Dashboard", "📋 Senarai Laporan", "🖨️ Cetak Borang BLPP", "📦 Download Pukal ZIP", "🚪 Log Keluar"]
     else:
-        menu_items = ["📝 Isi Borang BLPP (KP)", "🖨️ Cetak Semula Laporan Saya", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
+        menu_items = ["📝 Isi Borang BLPP (KP)", "📋 Senarai Laporan", "📈 Statistik Saya", "🚪 Log Keluar"]
     menu = st.radio("Menu", menu_items, label_visibility="collapsed")
     
     st.markdown('<div style="height:10px"></div>', unsafe_allow_html=True)
@@ -2188,136 +2188,6 @@ with col_content:
                 else:
                     st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
-    # ========== MENU 1B: CETAK SEMULA LAPORAN SAYA (KP) - v40 KASHAH: KP lupa cetak semasa buat laporan, nak cetak semula ==========
-    elif menu.startswith("🖨️") and peranan_user == "KP":
-        # Check if this is Cetak Semula Laporan Saya (KP) vs Cetak Borang BLPP (PPD/JPN/LP)
-        if "Semula" in menu or "Saya" in menu:
-            st.markdown('<div class="card"><h3>🖨️ Cetak Semula Laporan Saya (KP)</h3><p style="font-size:12px; color:#475569;">KP terlupa cetak semasa hantar laporan? Pilih laporan lama anda di bawah untuk cetak semula PDF berlogo. Semua laporan anda ikut No Pusat anda sahaja.</p></div>', unsafe_allow_html=True)
-            
-            # Filter laporan KP ini sahaja
-            my_reports = [r for r in reports if str(r.get("id_kp","")).strip().upper() == str(user.get("id","")).strip().upper() and str(r.get("no_pusat","")).strip().upper() == str(user.get("no_pusat","")).strip().upper()]
-            
-            if not my_reports:
-                st.warning("📭 Belum ada laporan anda. Sila isi Borang BLPP dahulu di menu Isi Borang BLPP.")
-            else:
-                st.success(f"📋 Anda ada {len(my_reports)} laporan untuk pusat {user.get('no_pusat')} - {user.get('nama_pusat','')}")
-                
-                # Filter ikut tarikh & peperiksaan
-                from collections import Counter
-                col_tarikh_kp, col_pep_kp = st.columns(2)
-                with col_tarikh_kp:
-                    all_tarikh_kp = sorted(list(set([r.get('tarikh','') for r in my_reports if r.get('tarikh')])), reverse=True)
-                    tarikh_opts_kp = ["SEMUA TARIKH"] + all_tarikh_kp
-                    sel_tarikh_kp = st.selectbox("Pilih Tarikh", tarikh_opts_kp, key="kp_cetak_tarikh_v40")
-                with col_pep_kp:
-                    all_pep_kp = sorted(list(set([str(r.get('peperiksaan','')).strip().upper() for r in my_reports if r.get('peperiksaan')])))
-                    pep_opts_kp = ["SEMUA PEPERIKSAAN"] + all_pep_kp
-                    sel_pep_kp = st.selectbox("Pilih Peperiksaan", pep_opts_kp, key="kp_cetak_pep_v40")
-                
-                filtered_kp = my_reports
-                if sel_tarikh_kp != "SEMUA TARIKH":
-                    filtered_kp = [r for r in filtered_kp if r.get('tarikh') == sel_tarikh_kp]
-                if sel_pep_kp != "SEMUA PEPERIKSAAN":
-                    filtered_kp = [r for r in filtered_kp if str(r.get('peperiksaan','')).strip().upper() == str(sel_pep_kp).strip().upper()]
-                
-                # Sort latest first
-                filtered_kp = sorted(filtered_kp, key=lambda x: x.get('tarikh_submit',''), reverse=True)
-                
-                if not filtered_kp:
-                    st.warning(f"Tiada laporan untuk Tarikh={sel_tarikh_kp}, Peperiksaan={sel_pep_kp}")
-                else:
-                    st.info(f"✅ {len(filtered_kp)} laporan ditemui - pilih satu untuk cetak semula")
-                    
-                    # Buat list pilihan dengan label cantik
-                    report_map_kp = {}
-                    for r in filtered_kp:
-                        kes_label = "TIADA KES" if r.get('tiada_kes') else f"{len(r.get('kes_data',[]))} KES"
-                        sidang_label = r.get('sidang','') or '-'
-                        submit_time = r.get('tarikh_submit','') or r.get('tarikh','')
-                        try:
-                            from datetime import datetime as dt_parse
-                            if ' ' in submit_time:
-                                dt_obj = dt_parse.strptime(submit_time, "%Y-%m-%d %H:%M:%S")
-                                masa_cantik = dt_obj.strftime("%d/%m/%Y %H:%M:%S")
-                            else:
-                                masa_cantik = submit_time
-                        except:
-                            masa_cantik = submit_time
-                        label = f"{r.get('tarikh')} | {r.get('peperiksaan','')} | {sidang_label} | {kes_label} | Hantar: {masa_cantik} | ID: {r.get('id','')[:20]}"
-                        report_map_kp[label] = r
-                    
-                    sel_label_kp = st.selectbox(f"📄 Pilih Laporan untuk Cetak Semula ({len(report_map_kp)} laporan)", list(report_map_kp.keys()), key="kp_cetak_select_v40")
-                    
-                    if sel_label_kp:
-                        selected_report_kp = report_map_kp[sel_label_kp]
-                        
-                        # Preview info
-                        col_info1, col_info2 = st.columns(2)
-                        with col_info1:
-                            st.markdown(f"""
-                            <div style="background:#F8FAFF; border:1px solid #E2E8F0; border-radius:10px; padding:12px;">
-                                <b>No Pusat:</b> {selected_report_kp.get('no_pusat')}<br>
-                                <b>Nama Pusat:</b> {selected_report_kp.get('nama_pusat')}<br>
-                                <b>Peperiksaan:</b> {selected_report_kp.get('peperiksaan')}<br>
-                                <b>Tarikh:</b> {selected_report_kp.get('tarikh')}<br>
-                                <b>Sidang:</b> {selected_report_kp.get('sidang','-')}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        with col_info2:
-                            kes_count = 0 if selected_report_kp.get('tiada_kes') else len(selected_report_kp.get('kes_data',[]))
-                            st.markdown(f"""
-                            <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px;">
-                                <b>Status:</b> {"TIADA KES" if selected_report_kp.get('tiada_kes') else f"{kes_count} KES"}<br>
-                                <b>Hantar Pada:</b> {selected_report_kp.get('tarikh_submit','')}<br>
-                                <b>Pelapor:</b> {selected_report_kp.get('pelapor','') or selected_report_kp.get('nama_kp','')}<br>
-                                <b>ID Laporan:</b> {selected_report_kp.get('id','')[:30]}
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        st.markdown("---")
-                        # Preview HTML & PDF
-                        try:
-                            html_preview = jana_blpp_html(selected_report_kp)
-                            st.markdown("#### 👁️ Preview Borang BLPP")
-                            st.components.v1.html(html_preview, height=800, scrolling=True)
-                        except Exception as e:
-                            st.error(f"Gagal preview: {e}")
-                        
-                        st.markdown("---")
-                        col_pdf, col_html = st.columns(2)
-                        with col_pdf:
-                            try:
-                                pdf_bytes = jana_blpp_pdf(selected_report_kp)
-                                if isinstance(pdf_bytes, BytesIO):
-                                    pdf_bytes = pdf_bytes.getvalue()
-                                st.download_button(
-                                    label="📥 Cetak Semula PDF Berlogo",
-                                    data=pdf_bytes,
-                                    file_name=f"BLPP_CETAK_SEMULA_{selected_report_kp.get('no_pusat')}_{selected_report_kp.get('tarikh')}_{selected_report_kp.get('id','')[:8]}.pdf",
-                                    mime="application/pdf",
-                                    key="kp_download_pdf_v40",
-                                    type="primary",
-                                    use_container_width=True
-                                )
-                            except Exception as e:
-                                st.error(f"Gagal jana PDF: {e}")
-                        with col_html:
-                            try:
-                                html_bytes = jana_blpp_html(selected_report_kp).encode('utf-8')
-                                st.download_button(
-                                    label="📄 Download HTML",
-                                    data=html_bytes,
-                                    file_name=f"BLPP_CETAK_SEMULA_{selected_report_kp.get('no_pusat')}_{selected_report_kp.get('tarikh')}.html",
-                                    mime="text/html",
-                                    key="kp_download_html_v40",
-                                    use_container_width=True
-                                )
-                            except:
-                                pass
-        else:
-            # Ini untuk PPD/JPN/LP yang guna menu 🖨️ Cetak Borang BLPP - akan di-handle di bawah
-            pass
-
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
         st.markdown('<div class="card"><h3>📋 Senarai Laporan BLPP</h3></div>', unsafe_allow_html=True)
@@ -2386,7 +2256,7 @@ with col_content:
             st.info("Tiada laporan ditemui dengan filter tersebut.")
 
     # ========== MENU 3: CETAK BORANG BLPP - FIX UNTUK PPD (KASHAH) ==========
-    elif menu.startswith("🖨️") and peranan_user != "KP":
+    elif menu.startswith("🖨️"):
         st.markdown('<div class="card"><h3>🖨️ Cetak Borang BLPP LP/Am 90 Pin. 1/2023 (Official) - PPD Enhanced</h3><p style="font-size:12px;">Proses: Login PPD → Pilih Daerah (PPD) → Pilih Tarikh → Pilih Sekolah/Pusat → Cetak. PPD Klang akan nampak semua laporan PPD Klang sahaja.</p></div>', unsafe_allow_html=True)
     
         if not reports:
