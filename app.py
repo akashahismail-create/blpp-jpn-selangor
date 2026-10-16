@@ -42,33 +42,9 @@ def load_reports_from_gsheets_cached(sheet_id_cache):
         return None
     try:
         sh = client.open_by_key(sheet_id_cache)
-        all_records = []
-        # KASHAH FIX: Baca semua sheet - SPM, STAM, AMALI, BERTUTUR
-        for ws_name in ["BLPP_Reports", "STAM_Reports", "AMALI_Reports", "BERTUTUR_Reports"]:
-            try:
-                ws = sh.worksheet(ws_name)
-                recs = ws.get_all_records()
-                # Tag dari mana
-                for r in recs:
-                    if not r.get("peperiksaan") and ws_name != "BLPP_Reports":
-                        # Auto set peperiksaan dari sheet name
-                        if ws_name == "STAM_Reports":
-                            r["peperiksaan"] = "STAM 2026"
-                        elif ws_name == "AMALI_Reports":
-                            r["peperiksaan"] = "Ujian Amali Sains SPM"
-                        elif ws_name == "BERTUTUR_Reports":
-                            r["peperiksaan"] = r.get("peperiksaan","Ujian Bertutur")
-                all_records.extend(recs)
-            except:
-                continue
-        if not all_records:
-            # Fallback old sheet only
-            try:
-                ws = sh.worksheet("BLPP_Reports")
-                all_records = ws.get_all_records()
-            except:
-                pass
-        return all_records if all_records else []
+        ws = sh.worksheet("BLPP_Reports")
+        records = ws.get_all_records()
+        return records
     except Exception as e:
         if "429" in str(e) or "Quota" in str(e):
             return "QUOTA_429"
@@ -154,25 +130,7 @@ def save_to_gsheets(report):
         for attempt in range(3):
             try:
                 sh = client.open_by_key(sheet_id)
-                # KASHAH FIX: Route ikut peperiksaan - STAM pergi sheet STAM_Reports
-                pep_upper = str(report.get("peperiksaan","")).upper()
-                if "STAM" in pep_upper:
-                    ws_name = "STAM_Reports"
-                elif "AMALI" in pep_upper:
-                    ws_name = "AMALI_Reports"
-                elif "BERTUTUR" in pep_upper or "MENDENGAR" in pep_upper:
-                    ws_name = "BERTUTUR_Reports"
-                else:
-                    ws_name = "BLPP_Reports"
-                try:
-                    ws = sh.worksheet(ws_name)
-                except:
-                    # Jika sheet tak wujud, create baru dengan header
-                    try:
-                        ws = sh.add_worksheet(title=ws_name, rows=1000, cols=20)
-                        ws.append_row(["id","tarikh","tarikh_submit","peperiksaan","tahun","no_pusat","nama_pusat","nama_kp","ppd","id_kp","kes_data_json","ringkasan","pelapor","tandatangan","telefon_kp"])
-                    except:
-                        ws = sh.worksheet("BLPP_Reports")
+                ws = sh.worksheet("BLPP_Reports")
                 row = [
                     report["id"],
                     report["tarikh"],
@@ -435,75 +393,6 @@ def get_all_pusat():
             break
     if centers:
         centers[0] = {"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"}
-    return centers
-
-def get_stam_centers():
-    import os, json, glob
-    # 1. Cuba JSON STAM
-    for p in ["/tmp/blpp_data/stam_centers.json", "data/stam_centers.json", "stam_centers.json"]:
-        if os.path.exists(p):
-            try:
-                with open(p, "r") as f:
-                    data = json.load(f)
-                    if data and len(data)>0:
-                        return data
-            except:
-                pass
-    # 2. Cari Excel STAM
-    search_folders = ["data", "/tmp/blpp_data", ".", "./data", "/mnt/data"]
-    for folder in search_folders:
-        if not os.path.exists(folder):
-            continue
-        for file in os.listdir(folder):
-            if not file.lower().endswith('.xlsx'):
-                continue
-            if "stam" not in file.lower():
-                continue
-            path = os.path.join(folder, file)
-            try:
-                import pandas as pd
-                xls = pd.ExcelFile(path)
-                sheet = xls.sheet_names[0]
-                df = pd.read_excel(path, sheet_name=sheet)
-                # Cari kolum Kod_PPD / No_Pusat
-                cols = [c.upper() for c in df.columns]
-                if "KOD_PPD" in str(df.columns).upper() or "NO_PUSAT" in str(df.columns).upper():
-                    centers=[]
-                    for _, row in df.iterrows():
-                        try:
-                            kod = str(row.get("Kod_PPD", row.get("KOD_PPD",""))).strip().upper()
-                            no_p = str(row.get("No_Pusat", row.get("NO_PUSAT",""))).strip().upper()
-                            nama = str(row.get("Nama_Pusat", row.get("NAMA_PUSAT", row.get("Nama_Sekolah","")))).strip()
-                            if not no_p or no_p=="NAN":
-                                continue
-                            centers.append({
-                                "Kod_PPD": kod,
-                                "No_Pusat": no_p,
-                                "Nama_Pusat": nama,
-                                "Nama_Sekolah": nama,
-                                "PPD": {"BA":"Klang","BB":"Kuala Langat","BC":"Kuala Selangor","BD":"Hulu Langat","BE":"Hulu Selangor","BF":"Sabak Bernam","BG":"Gombak","BH":"Petaling Perdana","BJ":"Sepang","BK":"Petaling Utama"}.get(kod, kod)
-                            })
-                        except:
-                            continue
-                    if centers:
-                        return centers
-            except:
-                continue
-    # 3. Fallback - guna SPM centers tapi flag STAM - biar KP boleh edit
-    return []
-
-def get_centers_by_peperiksaan(peperiksaan):
-    pep = str(peperiksaan).upper()
-    if "STAM" in pep:
-        stam = get_stam_centers()
-        if stam and len(stam)>0:
-            return stam
-        else:
-            # Jika tak ada file STAM, return empty supaya KP boleh taip manual
-            return []
-    else:
-        return get_all_pusat()
-
     return centers
 
 def ensure_centers(centers):
