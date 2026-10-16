@@ -1,6 +1,7 @@
 # App-50-v41-FINAL-QA-FIX - Production 504 Pusat JPN Selangor - KP/PPD/JPN/LP - Dark Mode Fix + Pep Filter + KP Cetak Semula
 # Based on v40 perfect - All functions retained, debug cleaned, garis lurus, tak senggang, logo LP
 import streamlit as st
+import time
 import pandas as pd
 import json, os
 from datetime import datetime, date
@@ -22,7 +23,6 @@ def get_gsheets_client():
     if not GSHEETS_AVAILABLE:
         return None
     try:
-        # Guna st.secrets untuk credentials
         if "gcp_service_account" in st.secrets:
             creds = Credentials.from_service_account_info(
                 st.secrets["gcp_service_account"],
@@ -34,6 +34,20 @@ def get_gsheets_client():
         st.warning(f"Google Sheets tidak dapat disambung: {e}, guna mode local JSON")
     return None
 
+@st.cache_data(ttl=300, show_spinner=False)
+def load_reports_from_gsheets_cached(sheet_id_cache):
+    client = get_gsheets_client()
+    if not client:
+        return None
+    try:
+        sh = client.open_by_key(sheet_id_cache)
+        ws = sh.worksheet("BLPP_Reports")
+        records = ws.get_all_records()
+        return records
+    except Exception as e:
+        if "429" in str(e) or "Quota" in str(e):
+            return "QUOTA_429"
+        return None
 
 def load_reports_from_gsheets():
     client = get_gsheets_client()
@@ -43,7 +57,6 @@ def load_reports_from_gsheets():
         DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
         sheet_id = DEFAULT_SHEET_ID
         try:
-            # Support 3 formats: gsheets_id direct, gsheets.sheet_id, gsheet_id
             if "gsheets_id" in st.secrets:
                 sheet_id = st.secrets.get("gsheets_id", sheet_id)
             elif "gsheet_id" in st.secrets:
@@ -51,21 +64,19 @@ def load_reports_from_gsheets():
             elif "gsheets" in st.secrets:
                 g = st.secrets["gsheets"]
                 sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
-            # Also check top-level sheet_id
             if not sheet_id and "sheet_id" in st.secrets:
                 sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
-        except Exception as e:
-            # st.write(f"Debug sheet_id error: {e}")
+        except:
             pass
         if not sheet_id:
             sheet_id = DEFAULT_SHEET_ID
-        sh = client.open_by_key(sheet_id)
-        ws = sh.worksheet("BLPP_Reports")
-        records = ws.get_all_records()
+        records_raw = load_reports_from_gsheets_cached(sheet_id)
+        if records_raw == "QUOTA_429" or records_raw is None:
+            return None
+        records = records_raw
         reports = []
         for r in records:
             try:
-                # Reconstruct report
                 kes_data = []
                 try:
                     import json as js
@@ -94,13 +105,11 @@ def load_reports_from_gsheets():
     except Exception as e:
         return None
 
-
 def save_to_gsheets(report):
     client = get_gsheets_client()
     if not client:
         return False
     try:
-        # ID Sheet dari secrets atau default - LOCK untuk MOE Kashah
         DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
         sheet_id = DEFAULT_SHEET_ID
         try:
@@ -113,147 +122,54 @@ def save_to_gsheets(report):
                 sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
             if not sheet_id and "sheet_id" in st.secrets:
                 sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
-        except Exception as e:
+        except:
             pass
         if not sheet_id:
             sheet_id = DEFAULT_SHEET_ID
-        if not sheet_id:
-            return False
-        sh = client.open_by_key(sheet_id)
-        ws = sh.worksheet("BLPP_Reports")
-        # Convert kes_data to JSON string
-        row = [
-            report["id"],
-            report["tarikh"],
-            report["tarikh_submit"],
-            report["peperiksaan"],
-            report["tahun"],
-            report["no_pusat"],
-            report["nama_pusat"],
-            report["nama_kp"],
-            report["ppd"],
-            report["id_kp"],
-            json.dumps(report["kes_data"], ensure_ascii=False),
-            "TIADA KES" if report.get("tiada_kes") else f"{len(report.get('kes_data',[]))} KES",
-            report.get("pelapor",""),
-            report.get("tandatangan_b64","")[:5000],  # Simpan sebahagian saja untuk demo, full di Drive
-            report.get("telefon_kp","")
-        ]
-        ws.append_row(row)
-        return True
+        for attempt in range(3):
+            try:
+                sh = client.open_by_key(sheet_id)
+                ws = sh.worksheet("BLPP_Reports")
+                row = [
+                    report["id"],
+                    report["tarikh"],
+                    report["tarikh_submit"],
+                    report["peperiksaan"],
+                    report["tahun"],
+                    report["no_pusat"],
+                    report["nama_pusat"],
+                    report["nama_kp"],
+                    report["ppd"],
+                    report["id_kp"],
+                    json.dumps(report["kes_data"], ensure_ascii=False),
+                    "TIADA KES" if report.get("tiada_kes") else f"{len(report.get('kes_data',[]))} KES",
+                    report.get("pelapor",""),
+                    report.get("tandatangan_b64","")[:5000],
+                    report.get("telefon_kp","")
+                ]
+                ws.append_row(row)
+                try:
+                    load_reports_from_gsheets_cached.clear()
+                except:
+                    pass
+                return True
+            except Exception as e:
+                if "429" in str(e) or "Quota" in str(e):
+                    if attempt < 2:
+                        time.sleep(2 * (attempt+1))
+                        continue
+                    else:
+                        st.warning("Google Sheets busy (quota). Laporan disimpan local, akan sync auto nanti.")
+                        return False
+                else:
+                    raise e
+        return False
     except Exception as e:
+        if "429" in str(e) or "Quota" in str(e):
+            st.warning("Google Sheets quota penuh, tunggu 1 minit. Data tetap selamat.")
+            return False
         st.error(f"Gagal simpan ke Google Sheets: {e}")
         return False
-
-
-# ========== CONFIG ==========
-st.set_page_config(
-    page_title="Sistem Pengurusan Pusat Peperiksaan - BLPP LP/Am 90",
-    layout="wide",
-    page_icon="📋",
-    initial_sidebar_state="expanded"
-)
-
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
-* { font-family: 'Inter', sans-serif; }
-#MainMenu, header, footer, [data-testid="stToolbar"], [data-testid="stHeader"] {visibility: hidden; display: none;}
-.stApp { background: linear-gradient(180deg, #F8FAFF 0%, #EEF2FF 100%) !important; }
-div[data-testid="stButton"] button { border-radius:10px !important; font-weight:700 !important; }
-div[data-testid="stSelectbox"] div[data-baseweb="select"], div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stDateInput"] input {
-    border-radius:10px !important; border:1.5px solid #E2E8F0 !important;
-}
-
-/* v36 DARK MODE FIX - Paksa tulisan hitam background putih, tak kira phone dark mode */
-html, body, .stApp {
-    color-scheme: light !important;
-}
-div[data-testid="stSelectbox"] div[data-baseweb="select"],
-div[data-testid="stSelectbox"] div[data-baseweb="select"] *,
-div[data-testid="stTextInput"] input,
-div[data-testid="stTextArea"] textarea,
-div[data-testid="stDateInput"] input,
-input, textarea, select {
-    color: #000000 !important;
-    background-color: #FFFFFF !important;
-    -webkit-text-fill-color: #000000 !important;
-}
-div[data-baseweb="select"] div,
-div[data-baseweb="select"] span,
-div[data-baseweb="select"] input {
-    color: #000000 !important;
-    background: #FFFFFF !important;
-}
-/* Dropdown menu - pastikan background putih tulisan hitam */
-div[data-baseweb="popover"],
-div[data-baseweb="menu"],
-ul[data-baseweb="menu"],
-li[data-baseweb="option"] {
-    background-color: #FFFFFF !important;
-    color: #000000 !important;
-}
-li[data-baseweb="option"] * {
-    color: #000000 !important;
-}
-li[data-baseweb="option"]:hover,
-li[data-baseweb="option"][aria-selected="true"] {
-    background-color: #EEF2FF !important;
-    color: #000000 !important;
-}
-/* Label Peranan */
-div[data-testid="stSelectbox"] label,
-div[data-testid="stTextInput"] label,
-p, label {
-    color: #000000 !important;
-}
-
-.header-biru {
-    background: linear-gradient(135deg, #0A1931 0%, #0D47A1 50%, #1565C0 100%);
-    padding:22px 26px; border-radius:16px; margin-bottom:18px; text-align:center;
-    box-shadow:0 10px 30px rgba(13,71,161,0.25); border:1px solid rgba(255,255,255,0.1);
-}
-.header-biru h1 { color:white; margin:0; font-family:'Plus Jakarta Sans'; font-size:22px; font-weight:800; }
-.header-biru h2 { color:#FFECB3; margin:6px 0 0 0; font-size:12px; font-weight:700; letter-spacing:1px; }
-.header-biru h3 { color:white; margin:10px 0 0 0; font-size:15px; font-weight:700; background:rgba(255,255,255,0.15); display:inline-block; padding:6px 18px; border-radius:20px; }
-.card { background:white; border-radius:14px; padding:18px; border:1px solid #EEF2FF; box-shadow:0 4px 16px rgba(0,0,0,0.06); margin:12px 0; }
-</style>
-""", unsafe_allow_html=True)
-
-# ========== DATA PPD SELANGOR (10 PPD) + KOD PPD ==========
-PPD_LIST = [
-    "Petaling Utama", "Petaling Perdana", "Gombak", "Hulu Langat", 
-    "Klang", "Kuala Langat", "Kuala Selangor", "Hulu Selangor", "Sepang", "Sabak Bernam"
-]
-
-KOD_PPD_MAPPING = {
-    "BA": "Klang",
-    "BB": "Kuala Langat",
-    "BC": "Kuala Selangor",
-    "BD": "Hulu Langat",
-    "BE": "Hulu Selangor",
-    "BF": "Sabak Bernam",
-    "BG": "Gombak",
-    "BH": "Petaling Perdana",
-    "BJ": "Sepang",
-    "BK": "Petaling Utama"
-}
-
-
-# ===== v29 STRICT PPD FILTER - KASHAH: PPD Klang jangan campur PPD lain - STRICT BY NO PUSAT PREFIX =====
-PPD_TO_KODS_STRICT = {
-    "Klang": ["BA"],
-    "Kuala Langat": ["BB"],
-    "Kuala Selangor": ["BC"],
-    "Hulu Langat": ["BD"],
-    "Hulu Selangor": ["BE"],
-    "Sabak Bernam": ["BF"],
-    "Gombak": ["BG"],
-    "Petaling Perdana": ["BH"],
-    "Sepang": ["BJ"],
-    "Petaling Utama": ["BK"],
-    "Petaling": ["BH", "BK", "BJ"]  # fallback
-}
 
 def get_kods_for_ppd(ppd_name):
     """Return list of kod like ['BA'] for Klang, ['BF','BG'] for Gombak"""
