@@ -118,7 +118,122 @@ KOD_PPD_MAPPING = {
 }
 
 
+# ===== v29 STRICT PPD FILTER - KASHAH: PPD Klang jangan campur PPD lain - STRICT BY NO PUSAT PREFIX =====
+PPD_TO_KODS_STRICT = {
+    "Klang": ["BA"],
+    "Kuala Langat": ["BB"],
+    "Kuala Selangor": ["BC"],
+    "Hulu Langat": ["BD"],
+    "Hulu Selangor": ["BE"],
+    "Sabak Bernam": ["BF"],
+    "Gombak": ["BG"],
+    "Petaling Perdana": ["BH"],
+    "Sepang": ["BJ"],
+    "Petaling Utama": ["BK"],
+    "Petaling": ["BH", "BK", "BJ"]  # fallback
+}
+
+def get_kods_for_ppd(ppd_name):
+    """Return list of kod like ['BA'] for Klang, ['BF','BG'] for Gombak"""
+    if not ppd_name:
+        return []
+    ppd_name = str(ppd_name).strip()
+    # Direct mapping
+    if ppd_name in PPD_TO_KODS_STRICT:
+        return PPD_TO_KODS_STRICT[ppd_name]
+    # If ppd_name is kod like BA, return [BA]
+    if len(ppd_name)==2 and ppd_name.upper() in KOD_PPD_MAPPING:
+        return [ppd_name.upper()]
+    # Try find by containing name
+    for k, v in PPD_TO_KODS_STRICT.items():
+        if k.lower() in ppd_name.lower() or ppd_name.lower() in k.lower():
+            return v
+    return []
+
+def is_report_for_ppd_strict(report, target_ppd):
+    """STRICT: Check if report belongs to target PPD by No Pusat prefix ONLY - no mixing"""
+    no_pusat = str(report.get("no_pusat","") or "").strip().upper()
+    kod_ppd_field = str(report.get("kod_ppd","") or "").strip().upper()
+    # Get allowed kods for this PPD
+    allowed_kods = get_kods_for_ppd(target_ppd)
+    if not allowed_kods:
+        return False
+    # Check prefix from no_pusat (most reliable - from Excel)
+    prefix = no_pusat[:2] if len(no_pusat)>=2 else ""
+    if prefix and prefix in allowed_kods:
+        return True
+    # Check kod_ppd field
+    if kod_ppd_field and kod_ppd_field in allowed_kods:
+        return True
+    return False
+
+def is_report_for_ppd_kod_strict(report, target_kod):
+    """STRICT by kod: BA -> only BA reports"""
+    target_kod = str(target_kod).strip().upper()
+    no_pusat = str(report.get("no_pusat","") or "").strip().upper()
+    kod_field = str(report.get("kod_ppd","") or "").strip().upper()
+    prefix = no_pusat[:2] if len(no_pusat)>=2 else ""
+    return prefix == target_kod or kod_field == target_kod
+
+
+
+
 def get_all_pusat():
+    # v24 FINAL: Super flexible - support data_v1.1(3)(1).xlsx macam di Github Kashah
+    try:
+        import pandas as pd, os, glob
+        # Cari semua xlsx yang ada v1.1 atau pusat
+        search_patterns = [
+            "data_v1.1*.xlsx", "data_v1.1(*).xlsx", "*v1.1*.xlsx",
+            "data/*.xlsx", "*.xlsx", "/mnt/data/*.xlsx"
+        ]
+        candidates = []
+        for pat in search_patterns:
+            candidates.extend(glob.glob(pat))
+            candidates.extend(glob.glob(os.path.join(".", pat)))
+        # tambah file spesifik github
+        for f in os.listdir("."):
+            if f.endswith(".xlsx") and ("v1.1" in f or "pusat" in f.lower()):
+                if f not in candidates:
+                    candidates.append(f)
+        # deduplicate
+        candidates = list(set(candidates))
+        for p in candidates:
+            if not os.path.exists(p):
+                continue
+            # skip amali
+            if "amali" in p.lower():
+                continue
+            try:
+                df = pd.read_excel(p)
+                # check ada Kod_PPD dan No_Pusat
+                if "Kod_PPD" not in df.columns or "No_Pusat" not in df.columns:
+                    continue
+                centers=[]
+                for _, row in df.iterrows():
+                    kod = str(row.get("Kod_PPD","")).strip().upper()
+                    if not kod or kod == "NAN":
+                        continue
+                    centers.append({
+                        "Kod_PPD": kod,
+                        "No_Pusat": str(row.get("No_Pusat","")).strip(),
+                        "Nama_Pusat": str(row.get("Nama_Pusat","")).strip(),
+                        "PPD": KOD_PPD_MAPPING.get(kod, str(row.get("PPD", KOD_PPD_MAPPING.get(kod,"")))),
+                        "Nama_Sekolah": str(row.get("Nama_Pusat","")).strip(),
+                        "Bil_Calon": int(row.get("Bil_Calon_Pusat",0)) if pd.notna(row.get("Bil_Calon_Pusat",0)) else 0
+                    })
+                if len(centers)>=100:  # asal 400, kita longgarkan untuk test
+                    has_bh562 = any(c["No_Pusat"]=="BH562" for c in centers)
+                    if not has_bh562:
+                        centers.append({"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"})
+                    print(f"get_all_pusat loaded {len(centers)} from {p}")
+                    return centers
+            except Exception as e:
+                # print(f"get_all_pusat fail {p}: {e}")
+                pass
+    except Exception as e:
+        pass
+    # fallback asal - dummy
     centers=[]
     for kod, ppd in KOD_PPD_MAPPING.items():
         for j in range(1, 60):
@@ -136,7 +251,18 @@ def ensure_centers(centers):
         return get_all_pusat()
     return centers
 
-PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}
+PPD_TO_KOD = {
+    "Klang": "BA",
+    "Kuala Langat": "BB",
+    "Kuala Selangor": "BC",
+    "Hulu Langat": "BD",
+    "Hulu Selangor": "BE",
+    "Sabak Bernam": "BF",
+    "Gombak": "BG",
+    "Petaling Perdana": "BH",
+    "Sepang": "BJ",
+    "Petaling Utama": "BK"
+}
 
 PEPERIKSAAN_LIST = [
     "SPM 2026", 
@@ -173,53 +299,49 @@ def load_spm_centers():
                     return json.load(f)
             except:
                 pass
-    # 2. Cari Excel SPM - fleksibel nama ada (1) (3) pun boleh
-    search_folders = ["data", "/tmp/blpp_data", ".", "./data"]
+    # 2. Cari Excel SPM - super fleksibel untuk nama (3)(1)
+    search_folders = ["data", "/tmp/blpp_data", ".", "./data", "/mnt/data"]
     for folder in search_folders:
         if not os.path.exists(folder):
             continue
-        # Cari file yang ada v1.1 atau spm
         for file in os.listdir(folder):
-            if file.endswith('.xlsx') and ('v1.1' in file or 'spm' in file.lower() or 'pusat' in file.lower() and 'amali' not in file.lower()):
+            if not file.endswith('.xlsx'):
+                continue
+            if "amali" in file.lower():
+                continue
+            if not ('v1.1' in file or 'spm' in file.lower() or 'pusat' in file.lower()):
+                # check any xlsx with Kod_PPD inside
+                pass
+            path = os.path.join(folder, file)
+            try:
+                # cuba baca sheet selenggara_pusat dulu
                 try:
-                    path = os.path.join(folder, file)
-                    df = pd.read_excel(path, sheet_name="selenggara_pusat")
-                    centers = []
-                    for _, row in df.iterrows():
-                        kod = str(row["Kod_PPD"]).strip()
-                        centers.append({
-                            "Kod_PPD": kod,
-                            "No_Pusat": str(row["No_Pusat"]).strip(),
-                            "Nama_Pusat": str(row["Nama_Pusat"]).strip(),
-                            "PPD": KOD_PPD_MAPPING.get(kod, kod),
-                            "Bil_Calon": int(row["Bil_Calon_Pusat"]) if pd.notna(row["Bil_Calon_Pusat"]) else 0
-                        })
-                    if centers:
-                        return centers
-                except Exception as e:
-                    continue
-        # Try any xlsx with selenggara_pusat sheet
-        for file in os.listdir(folder):
-            if file.endswith('.xlsx'):
-                try:
-                    path = os.path.join(folder, file)
                     xls = pd.ExcelFile(path)
                     if "selenggara_pusat" in xls.sheet_names:
                         df = pd.read_excel(path, sheet_name="selenggara_pusat")
-                        centers = []
-                        for _, row in df.iterrows():
-                            kod = str(row["Kod_PPD"]).strip()
-                            centers.append({
-                                "Kod_PPD": kod,
-                                "No_Pusat": str(row["No_Pusat"]).strip(),
-                                "Nama_Pusat": str(row["Nama_Pusat"]).strip(),
-                                "PPD": KOD_PPD_MAPPING.get(kod, kod),
-                                "Bil_Calon": int(row["Bil_Calon_Pusat"]) if pd.notna(row["Bil_Calon_Pusat"]) else 0
-                            })
-                        if centers:
-                            return centers
+                    else:
+                        df = pd.read_excel(path)
                 except:
+                    df = pd.read_excel(path)
+                if "Kod_PPD" not in df.columns or "No_Pusat" not in df.columns:
                     continue
+                centers = []
+                for _, row in df.iterrows():
+                    kod = str(row.get("Kod_PPD","")).strip()
+                    if not kod or kod.upper()=="NAN":
+                        continue
+                    centers.append({
+                        "Kod_PPD": kod.upper(),
+                        "No_Pusat": str(row.get("No_Pusat","")).strip(),
+                        "Nama_Pusat": str(row.get("Nama_Pusat","")).strip(),
+                        "PPD": KOD_PPD_MAPPING.get(kod.upper(), kod),
+                        "Bil_Calon": int(row.get("Bil_Calon_Pusat",0)) if pd.notna(row.get("Bil_Calon_Pusat",0)) else 0
+                    })
+                if centers:
+                    # print(f"load_spm_centers loaded {len(centers)} from {path}")
+                    return centers
+            except Exception as e:
+                continue
     return []
 
 def load_amali_centers():
@@ -267,22 +389,75 @@ def load_amali_centers():
 DATA_DIR = "/tmp/blpp_data"
 os.makedirs(DATA_DIR, exist_ok=True)
 USERS_FILE = os.path.join(DATA_DIR, "users.json")
+# v27 EMERGENCY RESET - untuk clear users.json lama
+def emergency_reset_users():
+    import os
+    try:
+        if os.path.exists(USERS_FILE):
+            os.remove(USERS_FILE)
+        if os.path.exists(REPORTS_FILE):
+            # jangan delete reports, cuma users
+            pass
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        return False
 REPORTS_FILE = os.path.join(DATA_DIR, "blpp_reports.json")
 
+
+def find_user_flexible(users, entered_id, entered_password):
+    # v26: Support login dengan ID = No Pusat, case-insensitive
+    eid = str(entered_id).strip().upper()
+    epw = str(entered_password).strip().lower()
+    epw_upper = str(entered_password).strip().upper()
+    # 1. Cari exact ID match (BA001)
+    for u in users:
+        uid = str(u.get("id","")).strip().upper()
+        pw = str(u.get("password","")).strip().lower()
+        pw_alt = str(u.get("password_alt","") or "").strip().lower()
+        pw_alt2 = str(u.get("password_alt2","") or "").strip().lower()
+        # ID match
+        if uid == eid:
+            # Password check - lower, upper, or alt
+            if pw == epw or pw_alt == epw or pw_alt2 == epw or pw == epw_upper.lower() or str(u.get("password","")).lower() == epw:
+                return u
+            # Also allow password = no_pusat lower
+            if str(u.get("no_pusat","")).strip().lower() == epw:
+                return u
+    # 2. Cari by no_pusat (kalau user taip BA001 tapi ID dalam file KP001)
+    for u in users:
+        np = str(u.get("no_pusat","")).strip().upper()
+        if np == eid:
+            pw = str(u.get("password","")).strip().lower()
+            pw_alt = str(u.get("password_alt","") or "").strip().lower()
+            pw_alt2 = str(u.get("password_alt2","") or "").strip().lower()
+            if pw == epw or pw_alt == epw or pw_alt2 == epw or np.lower() == epw:
+                return u
+    return None
+
 def load_users():
-    # KP001 style - 504 KP full - FIX: generate 504 bukan 20 saja
+    # v26 FIX KASHAH: Force regenerate kalau BA001 tak wujud - untuk support ID = No Pusat
     if os.path.exists(USERS_FILE):
         try:
             with open(USERS_FILE, "r") as f:
                 data = json.load(f)
-                # kalau dah ada file tapi masih format lama 20 saja, regenerate ke 504
                 kp_count = len([u for u in data if u.get("peranan")=="KP"])
-                if kp_count >= 500:
+                # Check kalau ada BA001 sebagai ID - kalau tak ada, file lama KP001 style, kena regenerate
+                has_ba001 = any(str(u.get("id","")).upper()=="BA001" for u in data)
+                has_bk002 = any(str(u.get("id","")).upper()=="BK002" for u in data)
+                if kp_count >= 500 and has_ba001 and has_bk002:
                     return data
                 else:
-                    os.remove(USERS_FILE)
-        except:
-            pass
+                    # File lama - delete untuk regenerate dengan ID = No Pusat
+                    try:
+                        os.remove(USERS_FILE)
+                    except:
+                        pass
+        except Exception as e:
+            try:
+                os.remove(USERS_FILE)
+            except:
+                pass
 
     # Default users - 504 KP + admin
     users = []
@@ -294,7 +469,18 @@ def load_users():
     users.append({"id":"LP001","nama":"Lembaga Peperiksaan","peranan":"LP","ppd":"Semua","no_pusat":"-","password":"2026","telefon":""})
     # 10 PPD - PASSWORD KOD PPD IKUT CADANGAN KASHAH: BA=Klang, BB=Kuala Langat dll - MUDAH INGAT
     # Mapping Kod ke PPD dari KOD_PPD_MAPPING
-    PPD_TO_KOD = {v:k for k,v in KOD_PPD_MAPPING.items()}  # Klang->BA etc
+    PPD_TO_KOD = {
+    "Klang": "BA",
+    "Kuala Langat": "BB",
+    "Kuala Selangor": "BC",
+    "Hulu Langat": "BD",
+    "Hulu Selangor": "BE",
+    "Sabak Bernam": "BF",
+    "Gombak": "BG",
+    "Petaling Perdana": "BH",
+    "Sepang": "BJ",
+    "Petaling Utama": "BK"
+}  # Klang->BA etc
     for i, ppd in enumerate(PPD_LIST):
         kod = PPD_TO_KOD.get(ppd, f"PPD{i+1:02d}")
         # Password = kod kecil dan besar - mudah: ba, BA, klang, ppd01 semua boleh
@@ -336,19 +522,38 @@ def load_users():
             no_pusat = str(c.get("No_Pusat","")).strip().upper()
             nama_pusat = str(c.get("Nama_Pusat") or c.get("Nama_Sekolah","")).strip()
             ppd = str(c.get("PPD","")).strip()
-            uid = f"KP{idx:03d}"
+            # v25 FIX KASHAH: ID = No Pusat terus, bukan KP001 - senang KP ingat
+            # Contoh: BA001 login dengan ID BA001 / ba001, BK002 dengan BK002
+            uid = no_pusat  # ID = No Pusat
             users.append({
-                "id": uid,
-                "nama": f"KP {uid} - {nama_pusat[:30]}",
+                "id": uid,  # BA001, BK002, BH562 dll
+                "nama": f"KP {no_pusat} - {nama_pusat[:40]}",
                 "peranan": "KP",
                 "ppd": ppd,
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
-                "password": uid.lower(),
-                "telefon": ""
+                "password": no_pusat.lower(),  # ba001
+                "password_alt": no_pusat.upper(),  # BA001
+                "password_alt2": f"kp{idx:03d}".lower(),  # legacy kp001 masih boleh
+                "telefon": "",
+                "kod_ppd": no_pusat[:2] if len(no_pusat)>=2 else ""
+            })
+            # Juga tambah alias KP001 -> BA001 untuk backward compatibility
+            users.append({
+                "id": f"KP{idx:03d}",
+                "nama": f"KP {no_pusat} - {nama_pusat[:30]} (Alias)",
+                "peranan": "KP",
+                "ppd": ppd,
+                "no_pusat": no_pusat,
+                "nama_pusat": nama_pusat,
+                "password": f"kp{idx:03d}".lower(),
+                "password_alt": no_pusat.lower(),
+                "password_alt2": no_pusat.upper(),
+                "telefon": "",
+                "kod_ppd": no_pusat[:2] if len(no_pusat)>=2 else ""
             })
     else:
-        # Fallback 504 ikut mapping BA-BK - FIX BUG Petaling Utama
+        # Fallback 504 - ID = No Pusat juga
         for i in range(1, 505):
             ppd = PPD_LIST[(i-1) % 10]
             kod = list(KOD_PPD_MAPPING.keys())[(i-1) // 60 % len(KOD_PPD_MAPPING)]
@@ -363,15 +568,15 @@ def load_users():
                 no_pusat="BC001"
                 nama_pusat="SMK Sepang"
                 ppd="Sepang"
-            uid = f"KP{i:03d}"
             users.append({
-                "id": uid,
-                "nama": f"KP {uid} - {nama_pusat[:30]}",
+                "id": no_pusat,
+                "nama": f"KP {no_pusat} - {nama_pusat[:30]}",
                 "peranan": "KP",
-                "ppd": ppd,  # FIX: Guna ppd variable, bukan user["ppd"] - bug lama sebab user tak wujud
+                "ppd": ppd,
                 "no_pusat": no_pusat,
                 "nama_pusat": nama_pusat,
-                "password": uid.lower(),
+                "password": no_pusat.lower(),
+                "password_alt": no_pusat.upper(),
                 "telefon": "",
                 "kod_ppd": kod
             })
@@ -517,7 +722,9 @@ def jana_blpp_html(report):
         .arahan ol {{ margin:0; padding-left:14px; width:100%; text-align:justify; }}
         .arahan li {{ text-align:justify; width:100%; }}
         .arahan ol {{ margin:0; padding-left:18px; }}
-        table {{ width:100%; border-collapse:collapse; table-layout:fixed; }}
+        table {{ width:100%; border-collapse:collapse; table-layout:fixed; margin:0; border-spacing:0; }}
+        table + table {{ margin-top:0 !important; }}
+        th, td {{ border:1.2px solid #000; }}
         th, td {{ word-wrap:break-word; white-space:pre-wrap; word-break:break-word; border:1.2px solid #000; padding:4px 5px; font-size:9pt; }}
         th {{ text-align:center; font-weight:bold; vertical-align:middle; }}
         td {{ text-align:center; vertical-align:middle; }}
@@ -536,21 +743,35 @@ def jana_blpp_html(report):
             <li>Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan mengenai perkara-perkara di luar dugaan yang berlaku kepada calon seperti sakit secara tiba-tiba, kemalangan, ditahan polis dan lain-lain.</li>
             <li>Jika ada kes, Ketua Pengawas Peperiksaan/Ketua Pengawas Amali/Ketua Pentaksir/Assessor dikehendaki mengisi borang ini dan menyerahkannya kepada Penyelia Kawasan untuk dihantar melalui e-mel pada hari yang sama kepada Pengarah Peperiksaan, Lembaga Peperiksaan (u.p.: Unit Menengah Atas/Unit Pra Universiti/Unit Vokasional) dan Pengarah Pendidikan Negeri, Jabatan Pendidikan Negeri (u.p.: Sektor Pentaksiran dan Peperiksaan).</li>
         </ol></div>
-        <table style="margin-top:10px;">
+        <table style="margin-top:10px; margin-bottom:0px; border-bottom:none; border-collapse:collapse;">
+            <colgroup>
+                <col style="width:6%;">
+                <col style="width:16%;">
+                <col style="width:16%;">
+                <col style="width:31%;">
+                <col style="width:31%;">
+            </colgroup>
             <tr>
-                <th style="width:21.66%;">NO. PUSAT</th>
-                <th style="width:47.29%;">NAMA PUSAT PEPERIKSAAN</th>
-                <th style="width:31.04%; font-size:8.5pt; line-height:1.15;">
+                <th colspan="2" style="width:22%;">NO. PUSAT</th>
+                <th colspan="2" style="width:47%;">NAMA PUSAT PEPERIKSAAN</th>
+                <th style="width:31%; font-size:8.5pt; line-height:1.15;">
                     NAMA KETUA PENGAWAS<br>PEPERIKSAAN/KETUA PENGAWAS<br>AMALI/KETUA PENTAKSIR/ASSESSOR
                 </th>
             </tr>
             <tr>
-                <td style="font-weight:bold; height:24px;">{no_pusat}</td>
-                <td style="font-weight:bold;">{nama_pusat}</td>
-                <td style="font-weight:bold; word-wrap:break-word;">{nama_kp}</td>
+                <td colspan="2" style="font-weight:bold; height:24px; border-bottom:none; text-align:center;">{no_pusat}</td>
+                <td colspan="2" style="font-weight:bold; border-bottom:none; text-align:center;">{nama_pusat}</td>
+                <td style="font-weight:bold; word-wrap:break-word; border-bottom:none; text-align:center;">{nama_kp}</td>
             </tr>
         </table>
-        <table style="margin-top:14px;">
+        <table style="margin-top:0px; border-top:none; border-collapse:collapse;">
+            <colgroup>
+                <col style="width:6%;">
+                <col style="width:16%;">
+                <col style="width:16%;">
+                <col style="width:31%;">
+                <col style="width:31%;">
+            </colgroup>
             <tr>
                 <th style="width:6%;">BIL.</th>
                 <th style="width:16%;">ANGKA GILIRAN</th>
@@ -1274,11 +1495,24 @@ if not st.session_state.login:
             if found:
                 st.session_state.login = True
                 st.session_state.user = found
+                # v28: Clear cache lama supaya tak tunjuk BK001 bila login BK009
+                st.session_state['current_ppd'] = found.get('ppd','-')
+                st.session_state['current_sekolah'] = found.get('nama_pusat') or found.get('nama','-')
+                st.session_state['current_no_pusat'] = found.get('no_pusat','-')
                 st.success(f"✅ Selamat datang {found['nama']}!")
                 st.balloons()
                 st.rerun()
             else:
                 st.error("❌ ID atau Kata Laluan salah. Sila semak peranan dan cuba lagi.")
+                with st.expander("🔧 Fix: BA001 tak boleh login? Klik sini"):
+                    st.write("App masih guna data lama KP001. Klik Reset untuk buat 504 ID baru (BA001, BK002...)")
+                    if st.button("🔄 RESET DATABASE - Buat Semula 504 KP (BA001 etc)"):
+                        if emergency_reset_users():
+                            st.success("✅ Database direset! Sila Refresh dan cuba login BA001 / ba001 semula")
+                            st.balloons()
+                        else:
+                            st.error("Gagal reset")
+                st.info(f"Debug: Cuba login dengan ID dari Excel - contoh BA001/ba001, BH562/bh562, BK002/bk002")
         
         # PANDUAN DIBUANG IKUT REQUEST KASHAH
         
@@ -1323,10 +1557,19 @@ div[data-testid="stSidebarNav"] {display: none !important;}
 col_menu, col_content = st.columns([1.1, 4], gap="medium")
 
 with col_menu:
-    # FIX INSTANT SYNC - baca dari session_state terkini, terus tukar bila pilih
-    current_ppd_display = st.session_state.get('current_ppd', user.get('ppd','-'))
-    current_sekolah_display = st.session_state.get('current_sekolah', user.get('nama','-'))
-    current_no_pusat_display = st.session_state.get('current_no_pusat', '-')
+    # v28 FIX KASHAH: Untuk KP, guna user data terus, bukan session_state lama - elak BK001 tunjuk bila login BK009
+    if peranan_user == "KP":
+        current_ppd_display = user.get('ppd','-')
+        current_sekolah_display = user.get('nama_pusat') or user.get('nama','-')
+        current_no_pusat_display = user.get('no_pusat','-')
+        # sync session untuk next render
+        st.session_state['current_ppd'] = current_ppd_display
+        st.session_state['current_sekolah'] = current_sekolah_display
+        st.session_state['current_no_pusat'] = current_no_pusat_display
+    else:
+        current_ppd_display = st.session_state.get('current_ppd', user.get('ppd','-'))
+        current_sekolah_display = st.session_state.get('current_sekolah', user.get('nama','-'))
+        current_no_pusat_display = st.session_state.get('current_no_pusat', '-')
     
     st.markdown(f'''
     <div class="card" style="position:sticky; top:18px; padding:16px; border:2px solid #E2E8F0;">
@@ -1369,10 +1612,8 @@ with col_content:
         if peranan_user != "KP":
             st.info("Hanya Ketua Pengawas (KP) boleh isi borang. PPD/JPN/LP boleh view laporan.")
         else:
-            st.markdown("#### 🔍 Pilih Pusat Peperiksaan")
-        
-            # Load centers - RINGKAS: Gabung SPM 504 + Amali 277, tak perlu pilih jenis dah
-            # Auto load semua, simple
+            # v22 FIX KASHAH - KP tak perlu pilih pusat lagi, terus ikut data Excel Github
+            # Load centers dari Excel real - untuk mapping yang betul
             try:
                 centers_spm = load_spm_centers()
             except:
@@ -1381,77 +1622,71 @@ with col_content:
                 centers_amali = load_amali_centers()
             except:
                 centers_amali = []
-            # Gabung, deduplicate by No_Pusat
             centers_dict = {}
             for c in (centers_spm + centers_amali):
                 centers_dict[c["No_Pusat"]] = c
             centers = list(centers_dict.values())
-            exam_mode = "SPM"  # default
-            
-            # AUTO FALLBACK jika Excel tak ada
+            exam_mode = "SPM"
             if not centers:
                 try:
                     centers = get_all_pusat()
                 except:
                     centers = []
-            
-            if not centers:
-                # last fallback - 504 dummy
-                centers = []
-                for kod, ppd in KOD_PPD_MAPPING.items():
-                    for j in range(1, 60):
-                        if len(centers)>=504:
-                            break
-                        centers.append({"Kod_PPD": kod, "No_Pusat": f"{kod}{j:03d}", "Nama_Pusat": f"SMK {ppd} {j}", "PPD": ppd, "Nama_Sekolah": f"SMK {ppd} {j}"})
-                    if len(centers)>=504:
-                        break
-                if centers:
-                    centers[0] = {"Kod_PPD":"BH","No_Pusat":"BH562","Nama_Pusat":"MAAHAD SAINS AL-QURAN AL-AMIN","PPD":"Petaling Perdana","Nama_Sekolah":"MAAHAD SAINS AL-QURAN AL-AMIN"}
-
-            # ensure tidak kosong
             centers = ensure_centers(centers) if 'ensure_centers' in globals() else centers
-        
-            # Step 2: Pilih Daerah - FIX: Dropdown nampak full nama + Maklumat Pusat boleh edit
-            colD1, colD2 = st.columns([1, 2.2])
-            with colD1:
-                selected_ppd = st.selectbox("Pilih Daerah / PPD", PPD_LIST, index=PPD_LIST.index(user["ppd"]) if user["ppd"] in PPD_LIST else 0)
-        
-            # Filter centers by PPD
-            filtered_by_ppd = [c for c in centers if c["PPD"] == selected_ppd]
-        
-            with colD2:
-                if filtered_by_ppd:
-                    sekolah_options = sorted(list(set([c["Nama_Pusat"] for c in filtered_by_ppd])))
-                    selected_sekolah = st.selectbox(f"Pilih Nama Sekolah ({len(sekolah_options)} sekolah di {selected_ppd}) - Taip untuk cari", sekolah_options)
-                    # Caption dipaparkan ringkas sahaja
-                    matched = [c for c in filtered_by_ppd if c["Nama_Pusat"] == selected_sekolah]
-                    if matched:
-                        auto_no_pusat = matched[0]["No_Pusat"]
-                        auto_kod_ppd = matched[0]["Kod_PPD"]
-                    else:
-                        auto_no_pusat = ""
-                        auto_kod_ppd = PPD_TO_KOD.get(selected_ppd, "")
-                else:
-                    st.warning(f"Tiada pusat di {selected_ppd} untuk {jenis_pep}")
-                    selected_sekolah = ""
-                    auto_no_pusat = ""
-                    auto_kod_ppd = ""
+            
+            # Dapatkan info pusat KP dari login - ikut Excel
+            user_no_pusat = str(user.get("no_pusat","")).strip().upper()
+            user_nama_pusat_excel = ""
+            user_ppd_excel = user.get("ppd","")
+            user_kod_excel = user_no_pusat[:2] if len(user_no_pusat)>=2 else ""
+            
+            # Cari dalam Excel real
+            found_in_excel = None
+            for c in centers:
+                if str(c.get("No_Pusat","")).strip().upper() == user_no_pusat:
+                    found_in_excel = c
+                    break
+            if found_in_excel:
+                user_nama_pusat_excel = found_in_excel.get("Nama_Pusat") or found_in_excel.get("Nama_Sekolah","")
+                user_ppd_excel = found_in_excel.get("PPD", user_ppd_excel)
+                user_kod_excel = found_in_excel.get("Kod_PPD", user_kod_excel)
+                selected_sekolah = user_nama_pusat_excel
+                auto_no_pusat = user_no_pusat
+                auto_kod_ppd = user_kod_excel
+                selected_ppd = user_ppd_excel
+            else:
+                # fallback kalau tak jumpa dalam Excel - guna data user
+                selected_sekolah = user.get("nama_pusat", "")
+                auto_no_pusat = user_no_pusat
+                auto_kod_ppd = user_kod_excel
+                selected_ppd = user.get("ppd","")
+                st.warning(f"⚠️ Pusat {user_no_pusat} tak jumpa dalam Excel, guna data login. Pastikan data_v1.1_3_1.xlsx ada.")
+            
+            # PAPARAN LOCKED - Tak ada dropdown lagi untuk KP
+            st.markdown(f'''
+            <div style="background:#f0fdf4; border:2px solid #22c55e; border-radius:12px; padding:16px; margin:12px 0;">
+                <div style="font-weight:800; color:#15803d; font-size:14px; margin-bottom:8px;">✅ Pusat Anda (Locked - Ikut Data Excel)</div>
+                <div style="display:grid; grid-template-columns:1fr 2fr 1fr; gap:12px; font-size:13px;">
+                    <div><b>No. Pusat:</b><br><span style="font-size:16px; font-weight:800; color:#0f172a;">{auto_no_pusat}</span><br><span style="font-size:11px; color:#64748b;">Kod: {auto_kod_ppd} = {user_ppd_excel}</span></div>
+                    <div><b>Nama Pusat:</b><br><span style="font-weight:700; color:#0f172a;">{selected_sekolah}</span></div>
+                    <div><b>PPD:</b><br><span style="font-weight:600;">{user_ppd_excel}</span><br><span style="font-size:11px; color:#64748b;">ID: {user.get("id")}</span></div>
+                </div>
+                <div style="margin-top:8px; font-size:11px; color:#16a34a;">🔒 Data ini dari data_v1.1_3_1.xlsx - sama macam di Github. KP tidak boleh tukar pusat lain.</div>
+            </div>
+            ''', unsafe_allow_html=True)
             
             # Maklumat Pusat - RINGKAS & PROFESIONAL (header biru dibuang ikut request Kashah)
             # Tiada header besar, terus papar kotak edit sahaja
             
-            # FIX: Key include selected_sekolah supaya tak stale bila tukar sekolah
-            colM1, colM2, colM3 = st.columns([1, 2, 1])
-            with colM1:
-                edit_no_pusat = st.text_input("No. Pusat", value=auto_no_pusat, key=f"edit_no_{selected_sekolah}_{selected_ppd}")
-            with colM2:
-                edit_nama_sekolah = st.text_input("Nama Pusat", value=selected_sekolah, key=f"edit_nama_{selected_sekolah}_{selected_ppd}")
-            with colM3:
-                edit_kod_ppd = st.text_input("Kod PPD", value=auto_kod_ppd, key=f"edit_kod_{selected_sekolah}_{selected_ppd}")
+            # v22 - Final values - terus dari locked box, tak ada edit lagi
+            final_no_pusat = auto_no_pusat
+            final_nama_sekolah = selected_sekolah
+            final_kod_ppd = auto_kod_ppd
+            selected_ppd = user_ppd_excel
             
-            final_no_pusat = edit_no_pusat.strip() if edit_no_pusat.strip() else auto_no_pusat
-            final_nama_sekolah = edit_nama_sekolah.strip() if edit_nama_sekolah.strip() else selected_sekolah
-            final_kod_ppd = edit_kod_ppd.strip() if edit_kod_ppd.strip() else auto_kod_ppd
+            # Hidden - untuk compatibility dengan kod bawah
+            edit_no_pusat = final_no_pusat
+            edit_nama_sekolah = final_nama_sekolah
             
             if not final_no_pusat or not final_nama_sekolah:
                 st.info("👆 Sila pilih Daerah dan Nama Sekolah")
@@ -1877,13 +2112,37 @@ with col_content:
 
             # Papar laporan saya (KP)
             st.markdown("---")
-            st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan)")
-            my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
+            st.markdown("#### 📜 Laporan Saya (20 Hari Peperiksaan) - LOCKED")
+            # v21 FINAL FIX KASHAH: KP 002 tak boleh tengok laporan pusat lain - STRICT
+            user_pusat_filter = str(user.get("no_pusat","")).strip().upper()
+            user_id_filter = str(user.get("id","")).strip().upper()
+            
+            # v35 FINAL: Bersih - tak tunjuk debug info untuk user
+            # st.caption(f"Pusat: {user_pusat_filter}")
+            
+            if user_pusat_filter and user_pusat_filter != "-" and user_pusat_filter != "":
+                # STRICT: id_kp mesti sama DAN no_pusat mesti sama dengan pusat KP - FINAL CLEAN
+                my_reports = [r for r in reports if str(r.get("id_kp","")).strip().upper()==user_id_filter and str(r.get("no_pusat","")).strip().upper()==user_pusat_filter]
+                # v35 FINAL: Tak tunjuk LOCKED message, bersih
+                # st.caption(f"{len(my_reports)} laporan untuk {user_pusat_filter}")
+            else:
+                my_reports = [r for r in reports if str(r.get("id_kp","")).strip().upper()==user_id_filter]
+                st.caption(f"Menunjukkan laporan untuk ID: {user_id_filter}")
+            
             if my_reports:
                 df_my = pd.DataFrame(my_reports)
-                st.dataframe(df_my[["id","tarikh","peperiksaan","no_pusat","tiada_kes"]], use_container_width=True)
+                # tambah info jumlah
+                st.success(f"✅ {len(my_reports)} laporan untuk pusat {my_reports[0].get('no_pusat')} - {my_reports[0].get('nama_pusat','')}")
+                cols_show = [c for c in ["id","tarikh","peperiksaan","no_pusat","nama_pusat","sidang","tiada_kes"] if c in df_my.columns]
+                st.dataframe(df_my[cols_show].sort_values("tarikh", ascending=False), use_container_width=True)
+                # download my reports
+                output = df_my.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Download Laporan Saya (CSV) - Hanya BK002", data=output, file_name=f"Laporan_{user_pusat_filter}_{user['id']}.csv", mime="text/csv")
             else:
-                st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
+                if user_pusat_filter and user_pusat_filter != "-":
+                    st.info(f"Belum ada laporan untuk {user_pusat_filter}. Sila isi borang di atas. Laporan anda akan kekal untuk {user_pusat_filter} sahaja.")
+                else:
+                    st.info("Belum ada laporan. Sila isi borang di atas untuk hari ini.")
 
     # ========== MENU 2: SENARAI LAPORAN ==========
     elif menu.startswith("📋"):
@@ -1908,33 +2167,24 @@ with col_content:
                 r["ppd"] = KOD_PPD_MAPPING[kod]
                 r["kod_ppd"] = kod
         filtered = reports
+
+        # v20 FIX KASHAH: KP lihat laporan sendiri sahaja - ikut No Pusat sendiri
+        if peranan_user == "KP":
+            kp_pusat = str(user.get("no_pusat","")).strip().upper()
+            if kp_pusat and kp_pusat != "-":
+                filtered = [r for r in filtered if str(r.get("no_pusat","")).strip().upper() == kp_pusat and r.get("id_kp") == user["id"]]
+            else:
+                filtered = [r for r in filtered if r.get("id_kp") == user["id"]]
         if peranan_user == "PPD":
             user_ppd = user["ppd"]
-            user_kod = PPD_TO_KOD.get(user_ppd, "") or user.get("kod_ppd","")
-            def match_ppd_filter(r):
-                kod_r = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                no_pusat = str(r.get("no_pusat","")).upper().strip()
-                kod_dari_pusat = no_pusat[:2] if len(no_pusat)>=2 else ""
-                if user_kod and (kod_r == user_kod.upper() or kod_dari_pusat == user_kod.upper()):
-                    return True
-                return False
-            filtered = [r for r in filtered if match_ppd_filter(r)]
+            # v29 STRICT: PPD Klang hanya nampak BA, tak campur BB/BC etc - ikut No Pusat prefix sahaja
+            filtered = [r for r in filtered if is_report_for_ppd_strict(r, user_ppd)]
         elif peranan_user == "KP":
             filtered = [r for r in filtered if r.get("id_kp")==user["id"]]
     
         if filter_ppd != "Semua":
-            def match_filter_ppd(r):
-                kod_r = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                no_pusat = str(r.get("no_pusat","")).upper().strip()
-                kod_dari_pusat = no_pusat[:2] if len(no_pusat)>=2 else ""
-                kod_filter = PPD_TO_KOD.get(filter_ppd, "")
-                ppd_betul = KOD_PPD_MAPPING.get(kod_r) or KOD_PPD_MAPPING.get(kod_dari_pusat)
-                if kod_filter and (kod_r == kod_filter or kod_dari_pusat == kod_filter):
-                    return True
-                if ppd_betul and ppd_betul == filter_ppd:
-                    return True
-                return False
-            filtered = [r for r in filtered if match_filter_ppd(r)]
+            # v31 STRICT: Filter Senarai Laporan JPN ikut No Pusat prefix - tak campur
+            filtered = [r for r in filtered if is_report_for_ppd_strict(r, filter_ppd)]
         if filter_tarikh:
             filtered = [r for r in filtered if r.get("tarikh")==filter_tarikh.strftime("%Y-%m-%d")]
         if filter_pep != "Semua":
@@ -1968,21 +2218,11 @@ with col_content:
         if not reports:
             st.warning("Belum ada laporan untuk dicetak.")
         else:
-            # Filter ikut peranan - FIX DOUBLE FILTER BUG KASHAH
+            # v35 FINAL CLEAN - tak tunjuk debug total
             available_reports = reports
-            # Debug: tunjuk total reports
-            st.caption(f"📊 Total laporan dalam sistem: {len(reports)} | PPD anda: {user['ppd']} | Login ID: {user['id']}")
             
             if peranan_user == "PPD":
-                # Jangan filter dulu - biar PPD boleh pilih mana-mana PPD (tapi default PPD dia)
-                # Kalau nak strict PPD hanya nampak PPD dia, uncomment bawah
-                # available_reports = [r for r in reports if r.get("ppd")==user["ppd"]]
-                st.info(f"📍 Anda login sebagai PPD {user['ppd']} - Total {len(reports)} laporan dalam sistem")
-                if len(reports) > 0:
-                    ppd_counts = {}
-                    for r in reports:
-                        ppd_counts[r.get('ppd','-')] = ppd_counts.get(r.get('ppd','-'), 0) + 1
-                    st.caption(f"📋 Pecahan laporan ikut PPD: {ppd_counts}")
+                st.info(f"📍 PPD {user['ppd']} - {len([r for r in reports if is_report_for_ppd_strict(r, user['ppd'])])} laporan daerah {user['ppd']}")
             
             elif peranan_user == "KP":
                 available_reports = [r for r in reports if r.get("id_kp")==user["id"]]
@@ -1991,20 +2231,10 @@ with col_content:
             if peranan_user == "PPD":
                 sel_ppd = user["ppd"]
                 kod_ppd_user = user.get("kod_ppd","")
-                st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD Anda: {sel_ppd} ({kod_ppd_user})</b> - Auto papar laporan PPD {sel_ppd} sahaja</div>", unsafe_allow_html=True)
-                def match_ppd_dash(r):
-                    r_ppd = str(r.get("ppd","")).strip()
-                    r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                    if r_ppd == sel_ppd:
-                        return True
-                    if kod_ppd_user and r_kod == kod_ppd_user.upper():
-                        return True
-                    if sel_ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
-                        return True
-                    if sel_ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
-                        return True
-                    return False
-                available_reports = [r for r in reports if match_ppd_dash(r)]
+                allowed = get_kods_for_ppd(sel_ppd)
+                st.markdown(f"<div style='background:#EEF2FF; padding:10px; border-radius:8px; border-left:4px solid #3B82F6;'><b>📍 PPD {sel_ppd} - {len([r for r in reports if is_report_for_ppd_strict(r, sel_ppd)])} laporan</b></div>", unsafe_allow_html=True)
+                # v35 FINAL: STRICT by No Pusat prefix
+                available_reports = [r for r in reports if is_report_for_ppd_strict(r, sel_ppd)]
                 st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
                 if len(available_reports)==0 and len(reports)>0:
                     st.warning(f"⚠️ Tiada laporan untuk {sel_ppd}. Debug: Total {len(reports)} laporan, PPD dalam sistem: {list(set([r.get('ppd','') for r in reports]))[:5]}")
@@ -2223,21 +2453,12 @@ with col_content:
     elif menu.startswith("📦"):
         st.markdown('<div class="card"><h3>📦 Download Pukal ZIP - PDF Berlogo</h3><p style="font-size:12px;">JPN/PPD boleh download semua laporan ikut tarikh dalam 1 ZIP file. Semua PDF ada logo LP, tulisan sampai sempadan, garis lurus, tiada jarak, 1 muka TIADA KES.</p></div>', unsafe_allow_html=True)
         
-        # FILTER IKUT PERANAN - PPD hanya daerah dia, JPN semua - FIX KASHAH: Filter ikut KOD sahaja, jangan ikut field ppd yang salah
+        # v29 STRICT PPD - PPD Klang jangan ada data campur PPD lain - FILTER STRICT BY NO PUSAT PREFIX
         if peranan_user == "PPD":
             user_ppd = user.get('ppd','')
-            user_kod = PPD_TO_KOD.get(user_ppd, '')
-            def match_ppd(r):
-                # FIX: Hanya guna kod_ppd dan no_pusat prefix, JANGAN guna ppd field (sebab data lama ppd=Klang padahal BH)
-                kod_r = str(r.get('kod_ppd','')).upper()
-                no_pusat = str(r.get('no_pusat','')).upper()
-                kod_dari_pusat = no_pusat[:2] if len(no_pusat)>=2 else ""
-                # Match jika kod sama
-                if kod_r and kod_r == user_kod: return True
-                if kod_dari_pusat and kod_dari_pusat == user_kod: return True
-                return False
-            reports_for_download = [r for r in reports if match_ppd(r)]
-            st.info(f"📍 PPD {user_ppd} ({user_kod}) - hanya laporan daerah {user_ppd} sahaja - Filter kod {user_kod}")
+            allowed_kods = get_kods_for_ppd(user_ppd)
+            reports_for_download = [r for r in reports if is_report_for_ppd_strict(r, user_ppd)]
+            st.success(f"📍 PPD {user_ppd} - {len(reports_for_download)} laporan")
         else:
             reports_for_download = reports
             # Breakdown untuk JPN
@@ -2283,12 +2504,8 @@ with col_content:
                 
                 filtered_jpn = reports_for_download
                 if selected_ppd_filter != "SEMUA DAERAH":
-                    def match_ppd_dl(r):
-                        kod = str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper()
-                        ppd_betul = KOD_PPD_MAPPING.get(kod, r.get('ppd',''))
-                        kod_filter = PPD_TO_KOD.get(selected_ppd_filter,'')
-                        return ppd_betul == selected_ppd_filter or kod == kod_filter
-                    filtered_jpn = [r for r in filtered_jpn if match_ppd_dl(r)]
+                    # v31 STRICT JPN Download
+                    filtered_jpn = [r for r in filtered_jpn if is_report_for_ppd_strict(r, selected_ppd_filter)]
                 if selected_tarikh_filter != "SEMUA TARIKH":
                     filtered_jpn = [r for r in filtered_jpn if r.get('tarikh') == selected_tarikh_filter]
                 
@@ -2570,20 +2787,8 @@ with col_content:
                 st.markdown("#### Laporan Ikut PPD (10 PPD)")
                 ppd_stats = []
                 for ppd in PPD_LIST:
-                    kod = PPD_TO_KOD.get(ppd, "")
-                    def match_count(r):
-                        r_ppd = str(r.get("ppd","")).strip()
-                        r_kod = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                        if r_ppd == ppd:
-                            return True
-                        if kod and r_kod == kod:
-                            return True
-                        if ppd == "Petaling Utama" and str(r.get("no_pusat","")).upper().startswith("BK"):
-                            return True
-                        if ppd == "Petaling Perdana" and str(r.get("no_pusat","")).upper().startswith("BH"):
-                            return True
-                        return False
-                    count = len([r for r in reports if match_count(r)])
+                    # v31 JPN STRICT: guna helper yang sama macam PPD - strict by No Pusat prefix
+                    count = len([r for r in reports if is_report_for_ppd_strict(r, ppd)])
                     ppd_stats.append({"PPD": ppd, "Laporan": count, "KP": len([u for u in load_users() if u.get("ppd")==ppd and u["peranan"]=="KP"])})
                 st.dataframe(pd.DataFrame(ppd_stats), use_container_width=True)
             
@@ -2644,24 +2849,11 @@ with col_content:
             my_reports = reports
             if peranan_user == "PPD":
                 user_ppd = user["ppd"]
-                user_kod = PPD_TO_KOD.get(user_ppd,"") or user.get("kod_ppd","")
-                def match_stat(r):
-                    kod_r = str(r.get("kod_ppd","") or r.get("no_pusat","")[:2]).strip().upper()
-                    no_pusat = str(r.get("no_pusat","")).upper()
-                    kod_dari_pusat = no_pusat[:2] if len(no_pusat)>=2 else ""
-                    if user_kod and (kod_r == user_kod.upper() or kod_dari_pusat == user_kod.upper()):
-                        return True
-                    return False
-                    # Also check all BK codes
-                    if user_ppd == "Petaling Utama":
-                        # Petaling Utama reports might have ppd = BK or Petaling Utama
-                        if r_ppd in ["BK", "Petaling Utama"] or str(r.get("no_pusat","")).upper().startswith("BK"):
-                            return True
-                    return False
-                my_reports = [r for r in reports if match_stat(r)]
-                # Debug info if 0
+                allowed_kods = get_kods_for_ppd(user_ppd)
+                # v29 STRICT STATISTIK: PPD Klang hanya kira BA, bukan BB/BC etc - ikut No Pusat prefix
+                my_reports = [r for r in reports if is_report_for_ppd_strict(r, user_ppd)]
                 if len(my_reports)==0 and len(reports)>0:
-                    st.warning(f"Debug Statistik: {len(reports)} total laporan, tapi 0 untuk {user_ppd}. PPD dalam reports: {list(set([r.get('ppd','') for r in reports]))[:10]}, No Pusat: {list(set([str(r.get('no_pusat',''))[:2] for r in reports]))[:10]}")
+                    st.info(f"Belum ada laporan untuk PPD {user_ppd}. KP daerah {user_ppd} belum hantar lagi.")
             elif peranan_user == "KP":
                 my_reports = [r for r in reports if r.get("id_kp")==user["id"]]
         
