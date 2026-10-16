@@ -567,7 +567,9 @@ def load_users():
         for idx, c in enumerate(spm_centers[:504], 1):
             no_pusat = str(c.get("No_Pusat","")).strip().upper()
             nama_pusat = str(c.get("Nama_Pusat") or c.get("Nama_Sekolah","")).strip()
-            ppd = str(c.get("PPD","")).strip()
+            # v42 FIX KASHAH: PAKSA PPD ikut prefix No Pusat - BC=Kuala Selangor bukan Sepang, BJ=Sepang
+            kod_prefix = no_pusat[:2].upper() if len(no_pusat)>=2 else ""
+            ppd = KOD_PPD_MAPPING.get(kod_prefix, str(c.get("PPD","")).strip())
             # v25 FIX KASHAH: ID = No Pusat terus, bukan KP001 - senang KP ingat
             # Contoh: BA001 login dengan ID BA001 / ba001, BK002 dengan BK002
             uid = no_pusat  # ID = No Pusat
@@ -1603,9 +1605,12 @@ div[data-testid="stSidebarNav"] {display: none !important;}
 col_menu, col_content = st.columns([1.1, 4], gap="medium")
 
 with col_menu:
-    # v28 FIX KASHAH: Untuk KP, guna user data terus, bukan session_state lama - elak BK001 tunjuk bila login BK009
+    # v42 FIX KASHAH: Untuk KP, paksa PPD ikut prefix No Pusat - BC=Kuala Selangor bukan Sepang - elak bug BC001 jadi Sepang
     if peranan_user == "KP":
-        current_ppd_display = user.get('ppd','-')
+        no_pusat_kp = str(user.get('no_pusat','')).strip().upper()
+        prefix_kp = no_pusat_kp[:2].upper() if len(no_pusat_kp)>=2 else ""
+        forced_ppd_kp = KOD_PPD_MAPPING.get(prefix_kp, user.get('ppd','-'))
+        current_ppd_display = forced_ppd_kp
         current_sekolah_display = user.get('nama_pusat') or user.get('nama','-')
         current_no_pusat_display = user.get('no_pusat','-')
         # sync session untuk next render
@@ -1680,11 +1685,14 @@ with col_content:
                     centers = []
             centers = ensure_centers(centers) if 'ensure_centers' in globals() else centers
             
-            # Dapatkan info pusat KP dari login - ikut Excel
+            # Dapatkan info pusat KP dari login - v42 FIX KASHAH: Paksa PPD ikut prefix No Pusat, bukan Excel
             user_no_pusat = str(user.get("no_pusat","")).strip().upper()
             user_nama_pusat_excel = ""
-            user_ppd_excel = user.get("ppd","")
-            user_kod_excel = user_no_pusat[:2] if len(user_no_pusat)>=2 else ""
+            # v42: PAKSA PPD ikut KOD_PPD_MAPPING prefix - BC=Kuala Selangor, BJ=Sepang - bukan ikut Excel
+            prefix_kod = user_no_pusat[:2].upper() if len(user_no_pusat)>=2 else ""
+            forced_ppd_from_kod = KOD_PPD_MAPPING.get(prefix_kod, user.get("ppd",""))
+            user_ppd_excel = forced_ppd_from_kod  # Paksa guna mapping kod
+            user_kod_excel = prefix_kod
             
             # Cari dalam Excel real
             found_in_excel = None
@@ -1694,12 +1702,14 @@ with col_content:
                     break
             if found_in_excel:
                 user_nama_pusat_excel = found_in_excel.get("Nama_Pusat") or found_in_excel.get("Nama_Sekolah","")
-                user_ppd_excel = found_in_excel.get("PPD", user_ppd_excel)
-                user_kod_excel = found_in_excel.get("Kod_PPD", user_kod_excel)
+                # v42 FIX KASHAH: JANGAN ambil PPD dari Excel - paksa ikut kod prefix BC=Kuala Selangor, BJ=Sepang
+                # Nama sahaja dari Excel, PPD paksa dari mapping
                 selected_sekolah = user_nama_pusat_excel
                 auto_no_pusat = user_no_pusat
-                auto_kod_ppd = user_kod_excel
-                selected_ppd = user_ppd_excel
+                auto_kod_ppd = prefix_kod
+                selected_ppd = forced_ppd_from_kod
+                user_ppd_excel = forced_ppd_from_kod
+                user_kod_excel = prefix_kod
             else:
                 # fallback kalau tak jumpa dalam Excel - guna data user
                 selected_sekolah = user.get("nama_pusat", "")
@@ -1986,6 +1996,9 @@ with col_content:
                             else:
                                 pelapor_nama = ""  # Kosongkan saja jika KP tak isi apa-apa
                         
+                        # v42: PAKSA PPD ikut prefix No Pusat - BC=Kuala Selangor, bukan Sepang - SET KAT SEMUA KISHAH
+                        forced_kod_final = str(no_pusat)[:2].upper() if len(str(no_pusat))>=2 else str(auto_kod_ppd).strip().upper() if 'auto_kod_ppd' in locals() and auto_kod_ppd else ""
+                        forced_ppd_final = KOD_PPD_MAPPING.get(forced_kod_final, user.get("ppd",""))
                         new_report = {
                             "id": f"BLPP-{datetime.now().strftime('%Y%m%d%H%M%S')}-{no_pusat}",
                             "peperiksaan": peperiksaan.upper().strip(),  # FIX: HURUF BESAR dalam report
@@ -1993,8 +2006,8 @@ with col_content:
                             "no_pusat": no_pusat,
                             "nama_pusat": nama_pusat,
                             "nama_kp": nama_kp,
-                            "ppd": KOD_PPD_MAPPING.get(str(auto_kod_ppd).strip().upper(), user.get("ppd","")) if 'auto_kod_ppd' in locals() and auto_kod_ppd else user["ppd"],
-                            "kod_ppd": str(auto_kod_ppd).strip().upper() if 'auto_kod_ppd' in locals() and auto_kod_ppd else PPD_TO_KOD.get(user.get("ppd",""),""),
+                            "ppd": forced_ppd_final,
+                            "kod_ppd": forced_kod_final,
                             "tarikh": tarikh.strftime("%Y-%m-%d"),
                             "sidang": sidang,
                             "tarikh_submit": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
