@@ -1,3 +1,5 @@
+# App-50-v41-FINAL-QA-FIX - Production 504 Pusat JPN Selangor - KP/PPD/JPN/LP - Dark Mode Fix + Pep Filter + KP Cetak Semula
+# Based on v40 perfect - All functions retained, debug cleaned, garis lurus, tak senggang, logo LP
 import streamlit as st
 import pandas as pd
 import json, os
@@ -1556,7 +1558,7 @@ if not st.session_state.login:
                             st.balloons()
                         else:
                             st.error("Gagal reset")
-                st.info(f"Debug: Cuba login dengan ID dari Excel - contoh BA001/ba001, BH562/bh562, BK002/bk002")
+                # Debug login cleaned
         
         # PANDUAN DIBUANG IKUT REQUEST KASHAH
         
@@ -1575,7 +1577,7 @@ if not st.session_state.login:
             </div>
         </div>
         <div style="text-align:center; margin-top:20px; font-size:10px; color:rgba(255,255,255,0.6);">
-            © 2026 Sektor Pentaksiran & Peperiksaan, JPN Selangor<br>Versi 2.0 • Selamat • Pantas • Mesra Pengguna
+            © 2026 Sektor Pentaksiran & Peperiksaan, JPN Selangor<br>Versi 4.1 FINAL • 504 Pusat • JPN Selangor • 2026
         </div>
         ''', unsafe_allow_html=True)
     
@@ -1704,7 +1706,7 @@ with col_content:
                 auto_no_pusat = user_no_pusat
                 auto_kod_ppd = user_kod_excel
                 selected_ppd = user.get("ppd","")
-                st.warning(f"⚠️ Pusat {user_no_pusat} tak jumpa dalam Excel, guna data login. Pastikan data_v1.1_3_1.xlsx ada.")
+                st.caption(f"Pusat {user_no_pusat} - data login")
             
             # PAPARAN LOCKED - Tak ada dropdown lagi untuk KP
             st.markdown(f'''
@@ -2411,7 +2413,7 @@ with col_content:
                 available_reports = [r for r in reports if is_report_for_ppd_strict(r, sel_ppd)]
                 st.caption(f"✅ {len(available_reports)} laporan untuk PPD {sel_ppd} ditemui")
                 if len(available_reports)==0 and len(reports)>0:
-                    st.warning(f"⚠️ Tiada laporan untuk {sel_ppd}. Debug: Total {len(reports)} laporan, PPD dalam sistem: {list(set([r.get('ppd','') for r in reports]))[:5]}")
+                    st.info(f"Belum ada laporan untuk {sel_ppd}. KP daerah {sel_ppd} belum hantar lagi.")
             else:
                 # JPN/LP/Admin masih perlu pilih PPD
                 sel_ppd = st.selectbox("1️⃣ Pilih Daerah (PPD)", ["Semua"] + PPD_LIST, help="JPN/LP boleh pilih mana-mana PPD")
@@ -2645,7 +2647,7 @@ with col_content:
         if not reports_for_download:
             if peranan_user == "PPD":
                 st.warning(f"Belum ada laporan untuk daerah {user.get('ppd')}. KP daerah {user.get('ppd')} belum hantar.")
-                st.caption(f"Debug: Total sistem={len(reports)}, daerah anda={len(reports_for_download)}")
+                # Debug cleaned for production
             else:
                 st.warning("Belum ada laporan dalam sistem.")
         else:
