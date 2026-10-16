@@ -2525,7 +2525,7 @@ with col_content:
             
             # JPN: Pilihan Daerah + Tarikh + Peperiksaan (v37 - KASHAH: tak campur peperiksaan)
             if peranan_user == "ADMIN_JPN" or peranan_user == "LP":
-                st.markdown("#### 🎯 Pilih Daerah, Tarikh & Peperiksaan (JPN/LP - Semua Daerah)")
+                st.markdown("#### 🎯 Pilih Daerah, Tarikh & Peperiksaan (JPN - Semua Daerah)")
                 col_ppd, col_tarikh, col_pep = st.columns(3)
                 with col_ppd:
                     # FIX KASHAH: Dropdown JPN mesti tunjuk SEMUA DAERAH, bukan hanya Klang sahaja - ambil dari PPD_LIST penuh
@@ -2629,90 +2629,6 @@ with col_content:
                                 file_name=f"BLPP_JPN_{selected_ppd_filter}_{selected_tarikh_filter}_{safe_pep}_{count}laporan.zip",
                                 mime="application/zip",
                                 key="jpn_dl_filtered_v2",
-                                type="primary",
-                                use_container_width=True
-                            )
-            
-            # PPD: Pilihan Tarikh & Peperiksaan (v38 - KASHAH: PPD pun sama, pilih peperiksaan & tarikh, tak campur)
-            if peranan_user == "PPD":
-                st.markdown("---")
-                st.markdown(f"#### 🎯 Pilih Tarikh & Peperiksaan (PPD {user.get('ppd')} - Daerah Anda Sahaja)")
-                col_tarikh_ppd, col_pep_ppd = st.columns(2)
-                with col_tarikh_ppd:
-                    all_tarikhs_ppd = sorted(list(set([r.get('tarikh','') for r in reports_for_download if r.get('tarikh')])), reverse=True)
-                    tarikh_options_ppd = ["SEMUA TARIKH"] + all_tarikhs_ppd
-                    selected_tarikh_ppd = st.selectbox("Pilih Tarikh", tarikh_options_ppd, key="ppd_tarikh_filter_v38")
-                with col_pep_ppd:
-                    all_peps_ppd = sorted(list(set([str(r.get('peperiksaan','')).strip().upper() for r in reports_for_download if r.get('peperiksaan')])))
-                    pep_options_ppd = ["SEMUA PEPERIKSAAN"] + (PEPERIKSAAN_LIST if 'PEPERIKSAAN_LIST' in globals() else all_peps_ppd)
-                    seen_ppd = set()
-                    pep_unique_ppd = []
-                    for p in pep_options_ppd:
-                        pu = str(p).strip().upper()
-                        if pu not in seen_ppd:
-                            seen_ppd.add(pu)
-                            pep_unique_ppd.append(p)
-                    for ap in all_peps_ppd:
-                        if ap not in seen_ppd:
-                            pep_unique_ppd.append(ap)
-                    selected_pep_ppd = st.selectbox("Pilih Peperiksaan", pep_unique_ppd, key="ppd_pep_filter_v38")
-                
-                filtered_ppd = reports_for_download
-                if selected_tarikh_ppd != "SEMUA TARIKH":
-                    filtered_ppd = [r for r in filtered_ppd if r.get('tarikh') == selected_tarikh_ppd]
-                if selected_pep_ppd != "SEMUA PEPERIKSAAN":
-                    filtered_ppd = [r for r in filtered_ppd if str(r.get('peperiksaan','')).strip().upper() == str(selected_pep_ppd).strip().upper()]
-                
-                if not filtered_ppd:
-                    st.warning(f"📭 Tiada laporan untuk Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} di daerah {user.get('ppd')}")
-                else:
-                    st.success(f"✅ {len(filtered_ppd)} laporan untuk Daerah={user.get('ppd')}, Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} akan dijana")
-                    with st.expander(f"📋 Lihat {len(filtered_ppd)} laporan", expanded=False):
-                        for r in filtered_ppd[:20]:
-                            st.write(f"- {r.get('tarikh')} | {r.get('no_pusat')} | {r.get('nama_pusat','')[:30]} | {r.get('peperiksaan','')} | {r.get('nama_kp','')[:20]}")
-                
-                    col_jana_ppd, col_dl_ppd = st.columns(2)
-                    with col_jana_ppd:
-                        if st.button(f"🔄 Jana ZIP {len(filtered_ppd)} Laporan", key="ppd_jana_filtered_v38", type="primary", use_container_width=True):
-                            with st.spinner(f"Jana {len(filtered_ppd)} PDF..."):
-                                try:
-                                    import zipfile
-                                    from io import BytesIO
-                                    zip_buffer = BytesIO()
-                                    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
-                                        for r in filtered_ppd:
-                                            no_pusat = r.get('no_pusat','UNKNOWN')
-                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
-                                            base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
-                                            try:
-                                                pdf_data = jana_blpp_pdf(r)
-                                                if isinstance(pdf_data, BytesIO):
-                                                    pdf_bytes = pdf_data.getvalue()
-                                                else:
-                                                    pdf_bytes = pdf_data
-                                                zip_file.writestr(f"{base_filename}.pdf", pdf_bytes)
-                                            except:
-                                                try:
-                                                    html_content = jana_blpp_html(r)
-                                                    zip_file.writestr(f"{base_filename}.html", html_content)
-                                                except:
-                                                    pass
-                                    zip_buffer.seek(0)
-                                    st.session_state["ppd_filtered_zip"] = zip_buffer.getvalue()
-                                    st.session_state["ppd_filtered_count"] = len(filtered_ppd)
-                                    st.success(f"✅ {len(filtered_ppd)} PDF dijana!")
-                                except Exception as e:
-                                    st.error(f"Error: {e}")
-                    with col_dl_ppd:
-                        if "ppd_filtered_zip" in st.session_state:
-                            count = st.session_state.get("ppd_filtered_count", len(filtered_ppd))
-                            safe_pep_ppd = "".join(c if c.isalnum() else "_" for c in str(selected_pep_ppd)[:20])
-                            st.download_button(
-                                label=f"⬇️ Download ZIP ({count}) - {selected_pep_ppd}",
-                                data=st.session_state["ppd_filtered_zip"],
-                                file_name=f"BLPP_PPD_{user.get('ppd')}_{selected_tarikh_ppd}_{safe_pep_ppd}_{count}laporan.zip",
-                                mime="application/zip",
-                                key="ppd_dl_filtered_v38",
                                 type="primary",
                                 use_container_width=True
                             )
