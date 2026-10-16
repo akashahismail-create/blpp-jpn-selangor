@@ -421,18 +421,17 @@ PEPERIKSAAN_LIST = [
     "UJIAN BERTUTUR BAHASA MELAYU",
     "UJIAN BERTUTUR BAHASA INGGERIS",
     "UJIAN MENDENGAR"
-]
+]  # FIX KASHAH: Hanya 3 tambah je - Bertutur BM, Bertutur BI, Mendengar - HURUF BESAR
 
-# KASHAH FREEZE - STAM dibekukan di web sebenar, dummy boleh on
-FROZEN_PEPERIKSAAN = ["STAM 2026"]  # Yang nak freeze
-STAM_ENABLED = False  # Set True untuk enable balik di dummy
+# KASHAH FREEZE - STAM dibekukan di web sebenar
+FROZEN_PEPERIKSAAN = ["STAM 2026"]
+STAM_ENABLED = False  # True = STAM muncul, False = STAM hilang (freeze)
 
 def get_active_peperiksaan_list():
     if STAM_ENABLED:
         return PEPERIKSAAN_LIST
     else:
         return [p for p in PEPERIKSAAN_LIST if p not in FROZEN_PEPERIKSAAN]
-  # FIX KASHAH: Hanya 3 tambah je - Bertutur BM, Bertutur BI, Mendengar - HURUF BESAR
 
 JENIS_PEPERIKSAAN = ["Peperiksaan SPM (504 Pusat)", "Ujian Amali Sains (277 Pusat Makmal)", "Ujian Bertutur & Mendengar"]
 
@@ -1888,14 +1887,15 @@ with col_content:
                     amali_idx = 2 if len(PEPERIKSAAN_LIST) > 2 else 0
                 # Simpan peperiksaan dalam session_state supaya dynamic sidang berfungsi
                 if 'selected_peperiksaan' not in st.session_state:
-                    st.session_state.selected_peperiksaan = PEPERIKSAAN_LIST[0 if exam_mode=="SPM" else amali_idx]
+                    _base_list = get_active_peperiksaan_list()
+                    st.session_state.selected_peperiksaan = _base_list[0 if exam_mode=="SPM" else (amali_idx if amali_idx < len(_base_list) else 0)]
                 
-                peperiksaan = st.selectbox("Peperiksaan", get_active_peperiksaan_list(), index=PEPERIKSAAN_LIST.index(st.session_state.selected_peperiksaan) if st.session_state.selected_peperiksaan in active_list else 0, key="peperiksaan_select")
+                active_pep_list = get_active_peperiksaan_list()
+                # Safety: kalau session ada STAM tapi dah freeze, reset ke SPM 2026
+                if st.session_state.selected_peperiksaan not in active_pep_list:
+                    st.session_state.selected_peperiksaan = active_pep_list[0]
+                peperiksaan = st.selectbox("Peperiksaan", active_pep_list, index=active_pep_list.index(st.session_state.selected_peperiksaan) if st.session_state.selected_peperiksaan in active_pep_list else 0, key="peperiksaan_select")
                 st.session_state.selected_peperiksaan = peperiksaan
-                # Freeze check
-                if not STAM_ENABLED and "STAM" in str(peperiksaan).upper():
-                    st.error("⛔ STAM 2026 DIBEKUKAN SEMENTARA - Tidak boleh isi laporan STAM di web sebenar. Sila guna dummy untuk test.")
-                    st.stop()
                 tahun = st.text_input("Tahun", value="2026")
                 no_pusat = st.text_input("No. Pusat (Auto dari Data)", value=auto_no_pusat, disabled=False)
             with colB:
