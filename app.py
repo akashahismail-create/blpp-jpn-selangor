@@ -34,13 +34,89 @@ def get_gsheets_client():
         st.warning(f"Google Sheets tidak dapat disambung: {e}, guna mode local JSON")
     return None
 
+
+def load_reports_from_gsheets():
+    client = get_gsheets_client()
+    if not client:
+        return None
+    try:
+        DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
+        sheet_id = DEFAULT_SHEET_ID
+        try:
+            # Support 3 formats: gsheets_id direct, gsheets.sheet_id, gsheet_id
+            if "gsheets_id" in st.secrets:
+                sheet_id = st.secrets.get("gsheets_id", sheet_id)
+            elif "gsheet_id" in st.secrets:
+                sheet_id = st.secrets.get("gsheet_id", sheet_id)
+            elif "gsheets" in st.secrets:
+                g = st.secrets["gsheets"]
+                sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
+            # Also check top-level sheet_id
+            if not sheet_id and "sheet_id" in st.secrets:
+                sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
+        except Exception as e:
+            # st.write(f"Debug sheet_id error: {e}")
+            pass
+        if not sheet_id:
+            sheet_id = DEFAULT_SHEET_ID
+        sh = client.open_by_key(sheet_id)
+        ws = sh.worksheet("BLPP_Reports")
+        records = ws.get_all_records()
+        reports = []
+        for r in records:
+            try:
+                # Reconstruct report
+                kes_data = []
+                try:
+                    import json as js
+                    if r.get("kes_data_json"):
+                        kes_data = js.loads(r.get("kes_data_json"))
+                except:
+                    kes_data = []
+                reports.append({
+                    "id": r.get("id",""),
+                    "tarikh": r.get("tarikh",""),
+                    "tarikh_submit": r.get("tarikh_submit",""),
+                    "peperiksaan": r.get("peperiksaan",""),
+                    "tahun": r.get("tahun",""),
+                    "no_pusat": r.get("no_pusat",""),
+                    "nama_pusat": r.get("nama_pusat",""),
+                    "nama_kp": r.get("nama_kp",""),
+                    "ppd": r.get("ppd",""),
+                    "id_kp": r.get("id_kp",""),
+                    "kes_data": kes_data,
+                    "pelapor": r.get("pelapor",""),
+                    "telefon_kp": r.get("telefon_kp","")
+                })
+            except:
+                continue
+        return reports
+    except Exception as e:
+        return None
+
+
 def save_to_gsheets(report):
     client = get_gsheets_client()
     if not client:
         return False
     try:
-        # ID Sheet dari secrets atau default
-        sheet_id = st.secrets.get("gsheets_id", "") if "gsheets_id" in st.secrets else ""
+        # ID Sheet dari secrets atau default - LOCK untuk MOE Kashah
+        DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
+        sheet_id = DEFAULT_SHEET_ID
+        try:
+            if "gsheets_id" in st.secrets:
+                sheet_id = st.secrets.get("gsheets_id", sheet_id)
+            elif "gsheet_id" in st.secrets:
+                sheet_id = st.secrets.get("gsheet_id", sheet_id)
+            elif "gsheets" in st.secrets:
+                g = st.secrets["gsheets"]
+                sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
+            if not sheet_id and "sheet_id" in st.secrets:
+                sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
+        except Exception as e:
+            pass
+        if not sheet_id:
+            sheet_id = DEFAULT_SHEET_ID
         if not sheet_id:
             return False
         sh = client.open_by_key(sheet_id)
@@ -664,6 +740,14 @@ def load_reports_cached(file_mtime):
     return []
 
 def load_reports():
+    # Try Google Sheets first - data kekal
+    try:
+        gs_data = load_reports_from_gsheets()
+        if gs_data is not None and len(gs_data) > 0:
+            return gs_data
+    except:
+        pass
+    # Fallback JSON local
     try:
         mtime = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
     except:
