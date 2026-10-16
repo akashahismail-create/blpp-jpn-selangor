@@ -86,6 +86,50 @@ div[data-testid="stButton"] button { border-radius:10px !important; font-weight:
 div[data-testid="stSelectbox"] div[data-baseweb="select"], div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea, div[data-testid="stDateInput"] input {
     border-radius:10px !important; border:1.5px solid #E2E8F0 !important;
 }
+
+/* v36 DARK MODE FIX - Paksa tulisan hitam background putih, tak kira phone dark mode */
+html, body, .stApp {
+    color-scheme: light !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"],
+div[data-testid="stSelectbox"] div[data-baseweb="select"] *,
+div[data-testid="stTextInput"] input,
+div[data-testid="stTextArea"] textarea,
+div[data-testid="stDateInput"] input,
+input, textarea, select {
+    color: #000000 !important;
+    background-color: #FFFFFF !important;
+    -webkit-text-fill-color: #000000 !important;
+}
+div[data-baseweb="select"] div,
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] input {
+    color: #000000 !important;
+    background: #FFFFFF !important;
+}
+/* Dropdown menu - pastikan background putih tulisan hitam */
+div[data-baseweb="popover"],
+div[data-baseweb="menu"],
+ul[data-baseweb="menu"],
+li[data-baseweb="option"] {
+    background-color: #FFFFFF !important;
+    color: #000000 !important;
+}
+li[data-baseweb="option"] * {
+    color: #000000 !important;
+}
+li[data-baseweb="option"]:hover,
+li[data-baseweb="option"][aria-selected="true"] {
+    background-color: #EEF2FF !important;
+    color: #000000 !important;
+}
+/* Label Peranan */
+div[data-testid="stSelectbox"] label,
+div[data-testid="stTextInput"] label,
+p, label {
+    color: #000000 !important;
+}
+
 .header-biru {
     background: linear-gradient(135deg, #0A1931 0%, #0D47A1 50%, #1565C0 100%);
     padding:22px 26px; border-radius:16px; margin-bottom:18px; text-align:center;
