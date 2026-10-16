@@ -800,8 +800,11 @@ def jana_blpp_html(report):
             <tr>
                 <th colspan="2" style="width:22%;">NO. PUSAT</th>
                 <th colspan="2" style="width:47%;">NAMA PUSAT PEPERIKSAAN</th>
-                <th style="width:31%; font-size:8pt; line-height:1.25; text-align:center; vertical-align:middle; padding:4px 3px; font-weight:bold;">
-                    NAMA KETUA PENGAWAS<br>PEPERIKSAAN / KETUA PENGAWAS<br>AMALI / KETUA PENTAKSIR /<br>ASSESSOR
+                <th style="width:31%; font-size:8pt; line-height:1.28; text-align:center; vertical-align:middle; padding:5px 4px; font-weight:bold;">
+                    <div style="text-align:center; margin-left:-6px;">NAMA KETUA PENGAWAS</div>
+                    <div style="text-align:center;">PEPERIKSAAN / KETUA PENGAWAS</div>
+                    <div style="text-align:center;">AMALI / KETUA PENTAKSIR /</div>
+                    <div style="text-align:center;">ASSESSOR</div>
                 </th>
             </tr>
             <tr>
