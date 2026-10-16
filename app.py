@@ -7,6 +7,7 @@ from datetime import datetime, date
 from io import BytesIO
 import base64
 from PIL import Image
+import time
 import io
 
 # ========== GOOGLE SHEETS INTEGRATION (OPTIONAL) ==========
@@ -43,7 +44,6 @@ def load_reports_from_gsheets():
         DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
         sheet_id = DEFAULT_SHEET_ID
         try:
-            # Support 3 formats: gsheets_id direct, gsheets.sheet_id, gsheet_id
             if "gsheets_id" in st.secrets:
                 sheet_id = st.secrets.get("gsheets_id", sheet_id)
             elif "gsheet_id" in st.secrets:
@@ -51,21 +51,20 @@ def load_reports_from_gsheets():
             elif "gsheets" in st.secrets:
                 g = st.secrets["gsheets"]
                 sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
-            # Also check top-level sheet_id
             if not sheet_id and "sheet_id" in st.secrets:
                 sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
-        except Exception as e:
-            # st.write(f"Debug sheet_id error: {e}")
+        except:
             pass
         if not sheet_id:
             sheet_id = DEFAULT_SHEET_ID
-        sh = client.open_by_key(sheet_id)
-        ws = sh.worksheet("BLPP_Reports")
-        records = ws.get_all_records()
+        # Cached read - 5 minit cache anti 429
+        records_raw = load_reports_from_gsheets_cached(sheet_id)
+        if records_raw == "QUOTA_429" or records_raw is None:
+            return None
+        records = records_raw
         reports = []
         for r in records:
             try:
-                # Reconstruct report
                 kes_data = []
                 try:
                     import json as js
@@ -100,7 +99,6 @@ def save_to_gsheets(report):
     if not client:
         return False
     try:
-        # ID Sheet dari secrets atau default - LOCK untuk MOE Kashah
         DEFAULT_SHEET_ID = "1jT3FknnnC3iCzn_xrJNWK-XfLY3ljIZwzvyVYdx3rUc"
         sheet_id = DEFAULT_SHEET_ID
         try:
@@ -113,35 +111,58 @@ def save_to_gsheets(report):
                 sheet_id = g.get("sheet_id", g.get("gsheets_id", sheet_id)) if hasattr(g, 'get') else g["sheet_id"]
             if not sheet_id and "sheet_id" in st.secrets:
                 sheet_id = st.secrets.get("sheet_id", DEFAULT_SHEET_ID)
-        except Exception as e:
+        except:
             pass
         if not sheet_id:
             sheet_id = DEFAULT_SHEET_ID
         if not sheet_id:
             return False
-        sh = client.open_by_key(sheet_id)
-        ws = sh.worksheet("BLPP_Reports")
-        # Convert kes_data to JSON string
-        row = [
-            report["id"],
-            report["tarikh"],
-            report["tarikh_submit"],
-            report["peperiksaan"],
-            report["tahun"],
-            report["no_pusat"],
-            report["nama_pusat"],
-            report["nama_kp"],
-            report["ppd"],
-            report["id_kp"],
-            json.dumps(report["kes_data"], ensure_ascii=False),
-            "TIADA KES" if report.get("tiada_kes") else f"{len(report.get('kes_data',[]))} KES",
-            report.get("pelapor",""),
-            report.get("tandatangan_b64","")[:5000],  # Simpan sebahagian saja untuk demo, full di Drive
-            report.get("telefon_kp","")
-        ]
-        ws.append_row(row)
-        return True
+        # Retry logic for 429
+        for attempt in range(3):
+            try:
+                sh = client.open_by_key(sheet_id)
+                ws = sh.worksheet("BLPP_Reports")
+                row = [
+                    report["id"],
+                    report["tarikh"],
+                    report["tarikh_submit"],
+                    report["peperiksaan"],
+                    report["tahun"],
+                    report["no_pusat"],
+                    report["nama_pusat"],
+                    report["nama_kp"],
+                    report["ppd"],
+                    report["id_kp"],
+                    json.dumps(report["kes_data"], ensure_ascii=False),
+                    "TIADA KES" if report.get("tiada_kes") else f"{len(report.get('kes_data',[]))} KES",
+                    report.get("pelapor",""),
+                    report.get("tandatangan_b64","")[:5000],
+                    report.get("telefon_kp","")
+                ]
+                ws.append_row(row)
+                # Clear cache after successful write
+                try:
+                    load_reports_from_gsheets_cached.clear()
+                except:
+                    pass
+                return True
+            except Exception as e:
+                err_str = str(e)
+                if "429" in err_str or "Quota" in err_str:
+                    if attempt < 2:
+                        time.sleep(2 * (attempt+1))
+                        continue
+                    else:
+                        # Quota - save locally, will sync later
+                        st.warning("Google Sheets busy (quota). Laporan disimpan local, akan sync auto nanti.")
+                        return False
+                else:
+                    raise e
+        return False
     except Exception as e:
+        if "429" in str(e) or "Quota" in str(e):
+            st.warning("Google Sheets quota penuh, tunggu 1 minit. Data tetap selamat dalam JSON.")
+            return False
         st.error(f"Gagal simpan ke Google Sheets: {e}")
         return False
 
@@ -975,6 +996,7 @@ def jana_blpp_pdf(report):
     try:
         from fpdf import FPDF
         from PIL import Image
+import time
         import os
 
         logo_to_use = None
@@ -2017,7 +2039,8 @@ with col_content:
                         tt_text = st.text_input("Tandatangan Text", value="", key="tt_text")
                         if tt_text:
                             # Generate signature image - HITAM BOLD BESAR, bukan biru kecil
-                            from PIL import ImageDraw, ImageFont
+                            from PIL import Image
+import timeDraw, ImageFont
                             # Canvas lebih besar untuk signature jelas
                             sig_img = Image.new('RGBA', (500, 120), color=(255,255,255,0))
                             d = ImageDraw.Draw(sig_img)
