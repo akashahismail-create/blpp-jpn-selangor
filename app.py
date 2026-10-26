@@ -979,7 +979,7 @@ def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for r in filtered:
             no_pusat = r.get('no_pusat','UNKNOWN')
-            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
+            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in str(r.get('nama_pusat') or '')[:15])
             base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}"
             try:
                 pdf_data = jana_blpp_pdf(r)
@@ -2931,7 +2931,10 @@ with col_content:
                     st.success(f"✅ {len(filtered_jpn)} laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter} akan dijana")
                     with st.expander(f"📋 Lihat {len(filtered_jpn)} laporan", expanded=False):
                         for r in filtered_jpn[:20]:
-                            st.write(f"- {r.get('tarikh') or ''} | {r.get('no_pusat') or ''} | {(r.get('nama_pusat') or '')[:30]} | {r.get('ppd') or ''} | {r.get('peperiksaan') or ''} | {(r.get('nama_kp') or '')[:20]}")
+                            try:
+                                st.write(f"- {str(r.get('tarikh') or '')} | {str(r.get('no_pusat') or '')} | {str(r.get('nama_pusat') or '')[:30]} | {str(r.get('ppd') or '')} | {str(r.get('peperiksaan') or '')} | {str(r.get('nama_kp') or '')[:20]}")
+                            except Exception as ex:
+                                st.write(f"- ⚠️ Rekod rosak: {str(r.get('id',''))} | {str(ex)}")
                     
                     col_jana, col_dl = st.columns(2)
                     with col_jana:
@@ -2944,7 +2947,7 @@ with col_content:
                                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                                         for r in filtered_jpn:
                                             no_pusat = r.get('no_pusat','UNKNOWN')
-                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
+                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in str(r.get('nama_pusat') or '')[:15])
                                             base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                             try:
                                                 pdf_data = jana_blpp_pdf(r)
@@ -3015,7 +3018,7 @@ with col_content:
                     st.success(f"✅ {len(filtered_ppd)} laporan untuk Daerah={user.get('ppd')}, Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} akan dijana")
                     with st.expander(f"📋 Lihat {len(filtered_ppd)} laporan", expanded=False):
                         for r in filtered_ppd[:20]:
-                            st.write(f"- {r.get('tarikh') or ''} | {r.get('no_pusat') or ''} | {(r.get('nama_pusat') or '')[:30]} | {r.get('peperiksaan') or ''} | {(r.get('nama_kp') or '')[:20]}")
+                            st.write(f"- {str(r.get('tarikh') or '')} | {str(r.get('no_pusat') or '')} | {str(r.get('nama_pusat') or '')[:30]} | {str(r.get('peperiksaan') or '')} | {str(r.get('nama_kp') or '')[:20]}")
                 
                     col_jana_ppd, col_dl_ppd = st.columns(2)
                     with col_jana_ppd:
@@ -3028,7 +3031,7 @@ with col_content:
                                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                                         for r in filtered_ppd:
                                             no_pusat = r.get('no_pusat','UNKNOWN')
-                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
+                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in str(r.get('nama_pusat') or '')[:15])
                                             base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                             try:
                                                 pdf_data = jana_blpp_pdf(r)
@@ -3118,7 +3121,7 @@ with col_content:
                         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                             for r in reports_for_download:
                                 no_pusat = r.get('no_pusat','UNKNOWN')
-                                safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
+                                safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in str(r.get('nama_pusat') or '')[:15])
                                 base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                 try:
                                     pdf_data = jana_blpp_pdf(r)
