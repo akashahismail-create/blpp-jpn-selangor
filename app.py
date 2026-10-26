@@ -1801,7 +1801,7 @@ with col_content:
 
     # ========== MENU 1: ISI BORANG BLPP (KP) ==========
     if menu.startswith("📝") or (menu.startswith("📊") and peranan_user=="KP"):
-        st.markdown('<div class="card"><h3>📝 Borang Laporan Pengendalian Peperiksaan - BLPP LP/Am 90</h3><p style="font-size:12px; color:#64748B;">Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan perkara luar dugaan (sakit tiba-tiba, kemalangan, ditahan polis, ketidakaturan kertas peperiksaan semasa peperiksaan dll). 504 Ketua Pengawas/506 KPPU / 790 Assessor akan isi setiap hari selama peperiksaan berlangsung.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><h3>📝 Borang Laporan Pengendalian Peperiksaan - BLPP LP/Am 90</h3><p style="font-size:12px; color:#64748B;">Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan perkara luar dugaan (sakit tiba-tiba, kemalangan, ditahan polis dll). 504 Ketua Pengawas akan isi setiap hari selama 20 hari peperiksaan.</p></div>', unsafe_allow_html=True)
     
         if peranan_user != "KP":
             st.info("Hanya Ketua Pengawas (KP) boleh isi borang. PPD/JPN/LP boleh view laporan.")
@@ -2856,7 +2856,13 @@ with col_content:
                             pep_options_unique.append(ap)
                     selected_pep_filter = st.selectbox("Pilih Peperiksaan", pep_options_unique, key="jpn_pep_filter_v37")
                 
+                # v39: Pilihan muat turun - semua laporan ATAU hanya yang ada kes
+                jenis_dl = st.radio("Jenis Laporan", ["Semua Laporan", "Ada Kes sahaja"], horizontal=True, key="jpn_jenis_kes_v39")
+                hanya_ada_kes = (jenis_dl == "Ada Kes sahaja")
+
                 filtered_jpn = reports_for_download
+                if hanya_ada_kes:
+                    filtered_jpn = [r for r in filtered_jpn if not r.get("tiada_kes")]
                 if selected_ppd_filter != "SEMUA DAERAH":
                     # v31 STRICT JPN Download
                     filtered_jpn = [r for r in filtered_jpn if is_report_for_ppd_strict(r, selected_ppd_filter)]
@@ -2865,7 +2871,15 @@ with col_content:
                 if selected_pep_filter != "SEMUA PEPERIKSAAN":
                     filtered_jpn = [r for r in filtered_jpn if str(r.get('peperiksaan','')).strip().upper() == str(selected_pep_filter).strip().upper()]
                 
-                if not filtered_jpn:
+                # v39: reset ZIP lama jika pilihan filter berubah (elak muat turun ZIP yang salah)
+                _sig_jpn = (selected_ppd_filter, selected_tarikh_filter, str(selected_pep_filter), jenis_dl)
+                if st.session_state.get("jpn_zip_sig") != _sig_jpn:
+                    st.session_state.pop("jpn_filtered_zip", None)
+                    st.session_state.pop("jpn_filtered_count", None)
+
+                if not filtered_jpn and hanya_ada_kes:
+                    st.warning(f"📭 Tiada laporan ADA KES untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter}")
+                elif not filtered_jpn:
                     if selected_ppd_filter != "SEMUA DAERAH" or selected_pep_filter != "SEMUA PEPERIKSAAN":
                         st.warning(f"📭 Belum ada laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter}")
                         ppd_counts_real = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or (r.get('no_pusat') or '')[:2]).upper(), r.get('ppd','')) for r in reports_for_download])
@@ -2874,7 +2888,7 @@ with col_content:
                     else:
                         st.warning(f"Tiada laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter}")
                 else:
-                    st.success(f"✅ {len(filtered_jpn)} laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter} akan dijana")
+                    st.success(f"✅ {len(filtered_jpn)} laporan {'ADA KES ' if hanya_ada_kes else ''}untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter} akan dijana")
                     with st.expander(f"📋 Lihat {len(filtered_jpn)} laporan", expanded=False):
                         for r in filtered_jpn[:20]:
                             try:
@@ -2884,7 +2898,7 @@ with col_content:
                     
                     col_jana, col_dl = st.columns(2)
                     with col_jana:
-                        if st.button(f"🔄 Jana ZIP {len(filtered_jpn)} Laporan", key="jpn_jana_filtered_v2", type="primary", use_container_width=True):
+                        if st.button(f"🔄 Jana ZIP {len(filtered_jpn)} Laporan{' (Ada Kes)' if hanya_ada_kes else ''}", key="jpn_jana_filtered_v2", type="primary", use_container_width=True):
                             with st.spinner(f"Jana {len(filtered_jpn)} PDF..."):
                                 try:
                                     import zipfile
@@ -2911,6 +2925,7 @@ with col_content:
                                     zip_buffer.seek(0)
                                     st.session_state["jpn_filtered_zip"] = zip_buffer.getvalue()
                                     st.session_state["jpn_filtered_count"] = len(filtered_jpn)
+                                    st.session_state["jpn_zip_sig"] = _sig_jpn
                                     st.success(f"✅ {len(filtered_jpn)} PDF dijana!")
                                 except Exception as e:
                                     st.error(f"Error: {e}")
@@ -2919,9 +2934,9 @@ with col_content:
                             count = st.session_state.get("jpn_filtered_count", len(filtered_jpn))
                             safe_pep = "".join(c if c.isalnum() else "_" for c in str(selected_pep_filter)[:20])
                             st.download_button(
-                                label=f"⬇️ Download ZIP ({count}) - {selected_pep_filter}",
+                                label=f"⬇️ Download ZIP ({count}){' ADA KES' if hanya_ada_kes else ''} - {selected_pep_filter}",
                                 data=st.session_state["jpn_filtered_zip"],
-                                file_name=f"BLPP_JPN_{selected_ppd_filter}_{selected_tarikh_filter}_{safe_pep}_{count}laporan.zip",
+                                file_name=f"BLPP_JPN_{selected_ppd_filter}_{selected_tarikh_filter}_{safe_pep}_{'ADAKES_' if hanya_ada_kes else ''}{count}laporan.zip",
                                 mime="application/zip",
                                 key="jpn_dl_filtered_v2",
                                 type="primary",
