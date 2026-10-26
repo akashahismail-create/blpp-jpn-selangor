@@ -979,7 +979,7 @@ def create_bulk_pdf_zip_by_date(reports, tarikh_selected):
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for r in filtered:
             no_pusat = r.get('no_pusat','UNKNOWN')
-            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
+            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
             base_filename = f"{r.get('tarikh','')}_{no_pusat}_{safe_nama}"
             try:
                 pdf_data = jana_blpp_pdf(r)
@@ -2854,7 +2854,7 @@ with col_content:
             # Breakdown untuk JPN
             if reports_for_download:
                 from collections import Counter
-                all_ppd_counter = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper(), r.get('ppd','') or 'TIADA PPD') for r in reports_for_download])
+                all_ppd_counter = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or (r.get('no_pusat') or '')[:2]).upper(), r.get('ppd','') or 'TIADA PPD') for r in reports_for_download])
                 all_ppd_detail = ", ".join([f"{ppd}={count}" for ppd, count in all_ppd_counter.items()])
                 st.info(f"👑 JPN/LP - semua laporan {len(reports_for_download)}: {all_ppd_detail}")
         
@@ -2876,7 +2876,7 @@ with col_content:
                 with col_ppd:
                     # FIX KASHAH: Dropdown JPN mesti tunjuk SEMUA DAERAH, bukan hanya Klang sahaja - ambil dari PPD_LIST penuh
                     def get_ppd_betul_dl(r):
-                        kod = str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper()
+                        kod = str(r.get('kod_ppd','') or (r.get('no_pusat') or '')[:2]).upper()
                         return KOD_PPD_MAPPING.get(kod, r.get('ppd',''))
                     all_ppds_with_data = sorted(list(set([get_ppd_betul_dl(r) for r in reports_for_download if get_ppd_betul_dl(r)])))
                     ppd_options = ["SEMUA DAERAH"] + PPD_LIST
@@ -2922,7 +2922,7 @@ with col_content:
                 if not filtered_jpn:
                     if selected_ppd_filter != "SEMUA DAERAH" or selected_pep_filter != "SEMUA PEPERIKSAAN":
                         st.warning(f"📭 Belum ada laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter}")
-                        ppd_counts_real = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or r.get('no_pusat','')[:2]).upper(), r.get('ppd','')) for r in reports_for_download])
+                        ppd_counts_real = Counter([KOD_PPD_MAPPING.get(str(r.get('kod_ppd','') or (r.get('no_pusat') or '')[:2]).upper(), r.get('ppd','')) for r in reports_for_download])
                         pep_counts_real = Counter([str(r.get('peperiksaan','')).strip().upper() for r in reports_for_download])
                         st.info(f"Filter tiada data. Total sistem {len(reports_for_download)} laporan: PPD={', '.join([f'{k}={v}' for k,v in ppd_counts_real.items()])} | Pep={', '.join([f'{k}={v}' for k,v in pep_counts_real.items()])}")
                     else:
@@ -2931,7 +2931,7 @@ with col_content:
                     st.success(f"✅ {len(filtered_jpn)} laporan untuk Daerah={selected_ppd_filter}, Tarikh={selected_tarikh_filter}, Peperiksaan={selected_pep_filter} akan dijana")
                     with st.expander(f"📋 Lihat {len(filtered_jpn)} laporan", expanded=False):
                         for r in filtered_jpn[:20]:
-                            st.write(f"- {r.get('tarikh')} | {r.get('no_pusat')} | {r.get('nama_pusat','')[:30]} | {r.get('ppd')} | {r.get('peperiksaan','')} | {r.get('nama_kp','')[:20]}")
+                            st.write(f"- {r.get('tarikh') or ''} | {r.get('no_pusat') or ''} | {(r.get('nama_pusat') or '')[:30]} | {r.get('ppd') or ''} | {r.get('peperiksaan') or ''} | {(r.get('nama_kp') or '')[:20]}")
                     
                     col_jana, col_dl = st.columns(2)
                     with col_jana:
@@ -2944,7 +2944,7 @@ with col_content:
                                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                                         for r in filtered_jpn:
                                             no_pusat = r.get('no_pusat','UNKNOWN')
-                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
+                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
                                             base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                             try:
                                                 pdf_data = jana_blpp_pdf(r)
@@ -3015,7 +3015,7 @@ with col_content:
                     st.success(f"✅ {len(filtered_ppd)} laporan untuk Daerah={user.get('ppd')}, Tarikh={selected_tarikh_ppd}, Peperiksaan={selected_pep_ppd} akan dijana")
                     with st.expander(f"📋 Lihat {len(filtered_ppd)} laporan", expanded=False):
                         for r in filtered_ppd[:20]:
-                            st.write(f"- {r.get('tarikh')} | {r.get('no_pusat')} | {r.get('nama_pusat','')[:30]} | {r.get('peperiksaan','')} | {r.get('nama_kp','')[:20]}")
+                            st.write(f"- {r.get('tarikh') or ''} | {r.get('no_pusat') or ''} | {(r.get('nama_pusat') or '')[:30]} | {r.get('peperiksaan') or ''} | {(r.get('nama_kp') or '')[:20]}")
                 
                     col_jana_ppd, col_dl_ppd = st.columns(2)
                     with col_jana_ppd:
@@ -3028,7 +3028,7 @@ with col_content:
                                     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                                         for r in filtered_ppd:
                                             no_pusat = r.get('no_pusat','UNKNOWN')
-                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
+                                            safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
                                             base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                             try:
                                                 pdf_data = jana_blpp_pdf(r)
@@ -3118,7 +3118,7 @@ with col_content:
                         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
                             for r in reports_for_download:
                                 no_pusat = r.get('no_pusat','UNKNOWN')
-                                safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in r.get('nama_pusat','')[:15])
+                                safe_nama = "".join(c if c.isalnum() or c in ('-','_') else '_' for c in (r.get('nama_pusat') or '')[:15])
                                 base_filename = f"{r.get('tarikh','')}_{r.get('ppd','')}_{no_pusat}_{safe_nama}"
                                 try:
                                     pdf_data = jana_blpp_pdf(r)
