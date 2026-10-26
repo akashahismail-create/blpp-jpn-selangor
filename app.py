@@ -50,6 +50,38 @@ def load_reports_from_gsheets_cached(sheet_id_cache):
             return "QUOTA_429"
         return None
 
+def _kes_data_kosong(kes_data):
+    """True jika tiada sebarang kes sebenar dalam kes_data."""
+    if not kes_data:
+        return True
+    for k in kes_data:
+        if isinstance(k, dict) and any(str(v).strip() for v in k.values()):
+            return False
+    return True
+
+def derive_tiada_kes(raw, kes_data):
+    """FIX v39: tentukan status TIADA KES dengan betul.
+    Google Sheets simpan status sebagai teks 'TIADA KES' / 'N KES' (bukan boolean),
+    jadi mesti dibaca semula supaya KP yang tick Tiada Kes dikira dalam kiraan Tiada Kes."""
+    import re as _re
+    try:
+        v = raw.get("tiada_kes")
+        if isinstance(v, bool):
+            return v
+        if v is not None and str(v).strip().upper() in ("TRUE", "1", "YA", "YES"):
+            return True
+        for key, val in raw.items():
+            if key == "kes_data_json" or not isinstance(val, str):
+                continue
+            sv = val.strip()
+            if _re.match(r"^tiada\s+kes", sv, _re.I):
+                return True
+            if _re.match(r"^\d+\s+kes$", sv, _re.I):
+                return False
+    except Exception:
+        pass
+    return _kes_data_kosong(kes_data)
+
 def load_reports_from_gsheets():
     client = get_gsheets_client()
     if not client:
@@ -97,6 +129,7 @@ def load_reports_from_gsheets():
                     "ppd": r.get("ppd",""),
                     "id_kp": r.get("id_kp",""),
                     "kes_data": kes_data,
+                    "tiada_kes": derive_tiada_kes(r, kes_data),
                     "pelapor": r.get("pelapor",""),
                     "telefon_kp": r.get("telefon_kp","")
                 })
@@ -789,7 +822,11 @@ def load_reports():
         mtime = os.path.getmtime(REPORTS_FILE) if os.path.exists(REPORTS_FILE) else 0
     except:
         mtime = 0
-    return load_reports_cached(mtime)
+    local = load_reports_cached(mtime)
+    for r in local:
+        if "tiada_kes" not in r:
+            r["tiada_kes"] = _kes_data_kosong(r.get("kes_data", []))
+    return local
 
 def save_reports(reports):
     with open(REPORTS_FILE, "w") as f:
@@ -2484,16 +2521,28 @@ with col_content:
         st.markdown(f"**Jumlah Laporan: {len(filtered)}** (dari {len(reports)} keseluruhan) | 504 Pusat | 20 Hari Peperiksaan")
     
         if filtered:
+            def _kes_tindakan_text(r):
+                if r.get("tiada_kes"):
+                    return "TIADA KES", "-"
+                items = [k for k in (r.get("kes_data") or []) if isinstance(k, dict) and (str(k.get("kes","")).strip() or str(k.get("tindakan","")).strip())]
+                if not items:
+                    return "", ""
+                kes_txt = " ; ".join(f"{i}) {str(k.get('kes','')).strip()}" for i, k in enumerate(items, 1))
+                tind_txt = " ; ".join(f"{i}) {str(k.get('tindakan','')).strip()}" for i, k in enumerate(items, 1))
+                return kes_txt, tind_txt
             df = pd.DataFrame(filtered)
+            _kt = [_kes_tindakan_text(r) for r in filtered]
+            df["kes"] = [x[0] for x in _kt]
+            df["tindakan"] = [x[1] for x in _kt]
             # Show table
-            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes"]
+            display_cols = ["id","tarikh","peperiksaan","no_pusat","nama_pusat","ppd","nama_kp","tiada_kes","kes","tindakan"]
             existing_cols = [c for c in display_cols if c in df.columns]
             st.dataframe(df[existing_cols].sort_values("tarikh", ascending=False), use_container_width=True, height=400)
         
             # Download Excel
             output = BytesIO()
             with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                df.to_excel(writer, index=False)
+                df[existing_cols].to_excel(writer, index=False)
             st.download_button("📥 Muat Turun Excel", data=output.getvalue(), file_name=f"BLPP_Laporan_{filter_ppd}_{datetime.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
         else:
             st.info("Tiada laporan ditemui dengan filter tersebut.")
