@@ -1801,7 +1801,7 @@ with col_content:
 
     # ========== MENU 1: ISI BORANG BLPP (KP) ==========
     if menu.startswith("📝") or (menu.startswith("📊") and peranan_user=="KP"):
-        st.markdown('<div class="card"><h3>📝 Borang Laporan Pengendalian Peperiksaan - BLPP LP/Am 90</h3><p style="font-size:12px; color:#64748B;">Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan perkara luar dugaan (sakit tiba-tiba, kemalangan, ditahan polis dll). 504 Ketua Pengawas akan isi setiap hari selama 20 hari peperiksaan.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="card"><h3>📝 Borang Laporan Pengendalian Peperiksaan - BLPP LP/Am 90</h3><p style="font-size:12px; color:#64748B;">Borang ini hendaklah digunakan semasa peperiksaan untuk melaporkan perkara luar dugaan (sakit tiba-tiba, kemalangan, ditahan polis dll). 504 Ketua Pengawas/506 KPPU / 790 Assessor akan isi setiap hari selama 20 hari peperiksaan.</p></div>', unsafe_allow_html=True)
     
         if peranan_user != "KP":
             st.info("Hanya Ketua Pengawas (KP) boleh isi borang. PPD/JPN/LP boleh view laporan.")
