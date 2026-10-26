@@ -145,7 +145,7 @@ def save_to_gsheets(report):
                     json.dumps(report["kes_data"], ensure_ascii=False),
                     "TIADA KES" if report.get("tiada_kes") else f"{len(report.get('kes_data',[]))} KES",
                     report.get("pelapor",""),
-                    report.get("tandatangan_b64","")[:5000],
+                    report.get("tandatangan_text","") or report.get("pelapor",""),
                     report.get("telefon_kp","")
                 ]
                 ws.append_row(row)
@@ -843,11 +843,7 @@ def jana_blpp_html(report):
         logo_b64 = "[STRIPPED 92 bytes]"
 
     
-    sig_b64_html = report.get('tandatangan_b64','')
-    if sig_b64_html:
-        sig_img_html = f'<img src="data:image/png;base64,{sig_b64_html}" style="max-height:55px; max-width:200px;">'
-    else:
-        sig_img_html = '<div style="height:55px;"></div>'
+    sig_img_html = '<div style="height:55px;"></div>'
     
     tarikh_html_raw = report.get('tarikh','')
     try:
@@ -879,8 +875,8 @@ def jana_blpp_html(report):
         @page {{ size: A4 landscape; margin: 10mm 12mm 8mm 12mm; }}
         body {{ font-family: Arial, sans-serif; margin:0; color:#000; }}
         .page {{ width:100%; max-width:1020px; margin:0 auto; }}
-        .hdr {{ display:flex; justify-content:space-between; align-items:flex-start; }}
-        .hdr-center {{ text-align:center; font-weight:bold; font-size:11pt; flex:1; line-height:1.25; }}
+        .hdr {{ display:flex; justify-content:space-between; align-items:center; }}
+        .hdr-center {{ text-align:left; font-weight:bold; font-size:11pt; flex:1; line-height:1.25; padding-left:12px; }}
         .hdr-right {{ text-align:right; font-size:9pt; font-weight:bold; line-height:1.2; }}
         hr {{ border:none; border-top:1.8px solid #000; margin:8px 0; }}
         .pep {{ text-align:center; font-weight:bold; font-size:11pt; margin:8px 0 2px 0; }}
@@ -899,7 +895,7 @@ def jana_blpp_html(report):
     </style></head><body>
     <div class="page">
         <div class="hdr">
-            <div style="width:100px;"><img src="data:image/png;base64,{logo_b64}" style="width:85px; height:auto; display:block;" onerror="this.style.display='none'"></div>
+            <div style="flex:none;"><img src="data:image/png;base64,{logo_b64}" style="width:125px; height:auto; display:block;" onerror="this.style.display='none'"></div>
             <div class="hdr-center">LEMBAGA PEPERIKSAAN<br>KEMENTERIAN PENDIDIKAN MALAYSIA</div>
             <div class="hdr-right">LP/Am 90 Pin. 1/2023<br><b style="font-size:13pt;">BLPP</b></div>
         </div>
@@ -1032,18 +1028,28 @@ def jana_blpp_pdf(report):
         pdf.add_page()
         pdf.set_line_width(0.35)
 
+        logo_w, logo_h = 0, 0
         if logo_to_use:
             try:
-                pdf.image(logo_to_use, x=10, y=4, w=28)
+                with Image.open(logo_to_use) as _im:
+                    _aspect = _im.width / float(_im.height)
+                logo_h = 30.0                      # tinggi maksimum (mm) supaya tak langgar arahan
+                logo_w = logo_h * _aspect
+                if logo_w > 40:                    # had lebar
+                    logo_w = 40.0
+                    logo_h = logo_w / _aspect
+                pdf.image(logo_to_use, x=10, y=4, w=logo_w, h=logo_h)
             except:
-                pass
+                logo_w, logo_h = 0, 0
 
-        # Header tengah
+        # Header - teks rapat kiri dengan logo
+        _tx = 10 + logo_w + 2 if logo_w else 10
+        _ty = 4 + (logo_h / 2.0) - 5 if logo_h else 6
         pdf.set_font("Helvetica", "B", 11)
-        pdf.set_xy(42, 6)
-        pdf.cell(190, 5, "LEMBAGA PEPERIKSAAN", align="C")
-        pdf.set_xy(42, 11)
-        pdf.cell(190, 5, "KEMENTERIAN PENDIDIKAN MALAYSIA", align="C")
+        pdf.set_xy(_tx, _ty)
+        pdf.cell(150, 5, "LEMBAGA PEPERIKSAAN", align="L")
+        pdf.set_xy(_tx, _ty + 5)
+        pdf.cell(150, 5, "KEMENTERIAN PENDIDIKAN MALAYSIA", align="L")
 
         # Kanan atas
         pdf.set_font("Helvetica", "", 8)
@@ -1411,25 +1417,6 @@ def jana_blpp_pdf(report):
         pdf.cell(60, 5, "Pelapor:")
         pdf.set_xy(150, yf)
         pdf.cell(60, 5, "Pengesahan:")
-        
-        # Signature clear background - letak di atas garisan, tidak tutup text
-        sig_b64 = report.get('tandatangan_b64','')
-        if sig_b64:
-            try:
-                import base64
-                img_bytes = base64.b64decode(sig_b64)
-                import os, tempfile
-                tmp_path = os.path.join(tempfile.gettempdir(), f"sig_{report.get('id','tmp')}.png")
-                with open(tmp_path, 'wb') as f:
-                    f.write(img_bytes)
-                # Letak signature di ruang kosong antara Pelapor: dan garisan
-                pdf.image(tmp_path, x=14, y=yf+5, w=38, h=11)
-                try:
-                    os.remove(tmp_path)
-                except:
-                    pass
-            except Exception as e:
-                pass
         
         # Garisan tandatangan
         pdf.line(10, yf+18, 95, yf+18)
@@ -1990,102 +1977,12 @@ with col_content:
                 with colT1:
                     pelapor_nama = st.text_input("Nama Pelapor (Ketua Pengawas)", value=user.get("nama_kp","") or "", placeholder="Contoh: AKASHAH BIN ISMAIL")
                     telefon_kp = st.text_input("No. Telefon KP (untuk WhatsApp PPD)", placeholder="012-3456789", value=user.get("telefon",""))
-                    st.markdown("**Muat Naik Tandatangan Digital**")
-                    st.caption("KP boleh upload gambar tandatangan atau lukis tandatangan")
-                    tandatangan_file = st.file_uploader("Upload Tandatangan (PNG/JPG)", type=["png","jpg","jpeg"], key="tt_file")
-                    use_camera = st.checkbox("📷 Guna Kamera untuk Tangkap Tandatangan")
-                    camera_tt = None
-                    if use_camera:
-                        camera_tt = st.camera_input("Tangkap Gambar Tandatangan", key="cam_tt")
-            
                 with colT2:
-                    st.markdown("**Preview Tandatangan**")
-                    def clear_bg_signature(pil_img):
-                        # Buang background - jadikan transparent, hanya tinggal dakwat hitam
-                        try:
-                            # Convert ke RGBA
-                            img_rgba = pil_img.convert("RGBA")
-                            # Resize kecil untuk process laju
-                            datas = img_rgba.getdata()
-                            new_data = []
-                            for item in datas:
-                                r,g,b,a = item
-                                # Jika pixel gelap (dakwat tandatangan < 90) - kekalkan hitam
-                                # Jika cerah (background kertas, bayang hitam tepi) - jadikan transparent
-                                # Threshold 100 untuk bezakan dakwat dengan background
-                                if r < 100 and g < 100 and b < 100:
-                                    # Dakwat - jadikan hitam pekat opaque
-                                    new_data.append((0, 0, 0, 255))
-                                else:
-                                    # Background - transparent
-                                    new_data.append((255, 255, 255, 0))
-                            img_rgba.putdata(new_data)
-                            return img_rgba
-                        except Exception as e:
-                            return pil_img.convert("RGBA")
-                    
-                    tt_b64 = ""
-                    if tandatangan_file:
-                        img = Image.open(tandatangan_file)
-                        img.thumbnail((600, 400))
-                        # Clear background terus
-                        img_cleared = clear_bg_signature(img)
-                        buf = BytesIO()
-                        img_cleared.save(buf, format="PNG", optimize=True)
-                        tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                        col_prev1, col_prev2 = st.columns(2)
-                        with col_prev1:
-                            st.image(img, caption="Asal", width=200)
-                        with col_prev2:
-                            st.image(img_cleared, caption="Background Cleared (Transparent)", width=200)
-                        st.success(f"✅ Tandatangan cleared: {len(tt_b64)/1024:.1f}KB - Background transparent")
-                    elif camera_tt:
-                        img = Image.open(camera_tt)
-                        img.thumbnail((600, 400))
-                        img_cleared = clear_bg_signature(img)
-                        buf = BytesIO()
-                        img_cleared.save(buf, format="PNG", optimize=True)
-                        tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                        col_prev1, col_prev2 = st.columns(2)
-                        with col_prev1:
-                            st.image(img, caption="Asal Kamera", width=200)
-                        with col_prev2:
-                            st.image(img_cleared, caption="Cleared - Boleh letak belakang text", width=200)
-                        st.success(f"✅ Camera cleared: {len(tt_b64)/1024:.1f}KB")
-                    else:
-                        st.info("Belum ada tandatangan. Sila upload atau guna kamera.")
-                        # Lukis manual guna canvas simple - guna text input sebagai alternatif
-                        st.markdown("Atau taip nama sebagai tandatangan digital:")
-                        tt_text = st.text_input("Tandatangan Text", value="", key="tt_text")
-                        if tt_text:
-                            # Generate signature image - HITAM BOLD BESAR, bukan biru kecil
-                            from PIL import ImageDraw, ImageFont
-                            # Canvas lebih besar untuk signature jelas
-                            sig_img = Image.new('RGBA', (500, 120), color=(255,255,255,0))
-                            d = ImageDraw.Draw(sig_img)
-                            # Cuba font bold, jika tiada guna default tapi besar
-                            try:
-                                # Cuba guna font yang lebih tebal
-                                font_large = ImageFont.truetype("DejaVuSans-Bold.ttf", 36)
-                            except:
-                                try:
-                                    font_large = ImageFont.load_default()
-                                except:
-                                    font_large = None
-                            # Tulis nama dengan hitam pekat, besar
-                            if font_large:
-                                d.text((10, 30), tt_text, fill=(0,0,0,255), font=font_large)
-                            else:
-                                d.text((10, 30), tt_text, fill=(0,0,0,255))
-                            # Convert ke RGBA dengan background transparent
-                            buf = BytesIO()
-                            sig_img.save(buf, format="PNG", optimize=True)
-                            tt_b64 = base64.b64encode(buf.getvalue()).decode()
-                            st.image(sig_img, width=300, caption=f"Signature: {tt_text}")
-                            # Juga set pelapor_nama preview
-                            st.info(f"Nama Pelapor akan jadi: {tt_text.upper()}")
+                    st.markdown("**Tandatangan (Text)**")
+                    st.caption("Taip nama sebagai tandatangan pelapor.")
+                    tt_text = st.text_input("Tandatangan Text", value="", key="tt_text")
+                    tt_b64 = ""  # fungsi imej tandatangan dibuang - text sahaja
 
-            
                 submitted = st.form_submit_button("📤 Hantar Laporan BLPP", type="primary", use_container_width=True)
             
                 if submitted:
